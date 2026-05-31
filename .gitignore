@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase / Google Services - contains API keys, must NOT be committed
+google-services.json
+GoogleService-Info.plist
+lib/firebase_options.dart
+
+# Android release signing - contains keystore passwords
+key.properties
+*.keystore
+*.jks
