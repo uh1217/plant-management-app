@@ -53,3 +53,8 @@ lib/firebase_options.dart
 key.properties
 *.keystore
 *.jks
+
+# Environment variables - must NOT be committed
+.env
+.env.*
+!.env.example

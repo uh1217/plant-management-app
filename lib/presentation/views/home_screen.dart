@@ -23,7 +23,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _isSidebarOpen = false;
+  bool _isDragging = false;
   String? _selectedCategory;
+  String? _selectedDate;
   Set<String> _selectedPlantIds = {};
   String _activeSearchQuery = '';
 
@@ -55,35 +57,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _addPlant(Plant plant) async {
     await _vm.savePlant(plant);
-    // loadPlants는 _openInputScreen의 .then()에서 처리하므로 여기선 생략
   }
 
+
+  // 이전 — .then() 콜백은 mounted 체크 없이 실행, 예외 시 조용히 실패
+  
+// 이후 — await로 pop을 명시적으로 기다린 뒤, mounted 확인 후 loadPlants
   Future<void> _updatePlant(Plant updatedPlant) async {
     await _vm.savePlant(updatedPlant);
     await _vm.loadPlants();
+    if (!mounted) return;  // 위젯이 살아있을 때만 실행
+    setState(() {});  // → notifyListeners → setState → 리빌드
   }
 
   Future<void> _deletePlant(String plantId) async {
     await _vm.deletePlant(plantId);
     await _vm.loadPlants();
+    if (!mounted) return;
     setState(() => _selectedPlantIds.remove(plantId));
   }
 
   Future<void> _handleWaterSelectedPlants() async {
-    final today = DateTime.now().toIso8601String().split('T')[0];
+    final today = DateTime.now().toIso8601String();
     await _vm.waterPlants(_selectedPlantIds, today);
+    if (!mounted) return;
     setState(() => _selectedPlantIds.clear());
   }
 
   Future<void> _handleFertilizeSelectedPlants() async {
     final today = DateTime.now().toIso8601String().split('T')[0];
     await _vm.fertilizePlants(_selectedPlantIds, today);
+    if (!mounted) return;
     setState(() => _selectedPlantIds.clear());
   }
 
   void _selectCategory(String? category) {
     setState(() {
       _selectedCategory = category;
+      _selectedDate = null;
+      _isSidebarOpen = false;
+    });
+  }
+
+  void _selectDateFilter(String isoDate) {
+    setState(() {
+      _selectedDate = isoDate;
+      _selectedCategory = null;
+      _activeSearchQuery = '';
       _isSidebarOpen = false;
     });
   }
@@ -111,24 +131,46 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Computed Getters ──────────────────────────────────────────────────────
 
   List<Plant> get _filteredPlants {
-    return _vm.plants.where((p) {
+    final plants = _vm.plants.where((p) {
       if (_activeSearchQuery.isNotEmpty) {
         return p.name
             .toLowerCase()
             .contains(_activeSearchQuery.toLowerCase());
+      }
+      if (_selectedDate != null) {
+        return p.wateringHistory
+            .any((h) => h.startsWith(_selectedDate!));
       }
       if (_selectedCategory != null) {
         return p.categories.contains(_selectedCategory);
       }
       return true;
     }).toList();
+
+
+    //초 단위 계산산
+    int secondsUntilWatering(Plant p) {
+      final last = DateTime.tryParse(p.lastWatered);
+      if (last == null) return p.wateringFrequency * 86400;
+      return p.wateringFrequency * 86400 -
+          DateTime.now().difference(last).inSeconds;
+    }
+
+    plants.sort((a, b) {
+      final cmp =
+          secondsUntilWatering(a).compareTo(secondsUntilWatering(b));
+      if (cmp != 0) return cmp;
+      return a.name.compareTo(b.name);
+    });
+
+    return plants;
   }
 
   // ── Navigate to InputScreen ───────────────────────────────────────────────
 
-  void _openInputScreen() {
+  Future<void> _openInputScreen() async {
     setState(() => _isSidebarOpen = false);
-    Navigator.push(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
         builder: (_) => InputScreen(
@@ -144,11 +186,9 @@ class _HomeScreenState extends State<HomeScreen> {
           }),
         ),
       ),
-    ).then((_) async {
-      // InputScreen이 pop된 직후 HomeScreen이 활성화된 상태에서 데이터 재로드
-      // → notifyListeners → _onVmChanged → setState 순으로 즉시 반영 보장
-      await _vm.loadPlants();
-    });
+    );
+    if (!mounted) return;
+    await _vm.loadPlants();
   }
 
   // ── Edit Dialog ───────────────────────────────────────────────────────────
@@ -162,9 +202,10 @@ class _HomeScreenState extends State<HomeScreen> {
             horizontal: 16, vertical: 24),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16)),
-        child: ConstrainedBox(
+          child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
+            // 바깥 context 대신 다이얼로그 전용 ctx 사용 → _dependents.isEmpty 오류 방지
+            maxHeight: MediaQuery.of(ctx).size.height * 0.9,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -180,50 +221,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       '식물 수정',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () async {
-                            final confirmed =
-                                await showDialog<bool>(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                title: const Text('식물 삭제'),
-                                content: Text(
-                                    '${plant.name}을(를) 삭제하시겠습니까?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('취소'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text(
-                                      '삭제',
-                                      style: TextStyle(
-                                          color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirmed == true && mounted) {
-                              Navigator.pop(ctx);
-                              await _deletePlant(plant.id);
-                            }
-                          },
-                          child: const Text(
-                            '삭제',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
+                    // 삭제 기능은 카드 드래그(삭제 존 드롭)로 통일 — 헤더 삭제 버튼 제거
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
                     ),
                   ],
                 ),
@@ -299,6 +300,105 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
+              // 드래그 중 삭제 존(하단 100px) 제외 영역에 40% 음영 오버레이
+              // IgnorePointer로 감싸 드래그 제스처를 방해하지 않음
+              if (_isDragging)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 100,
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+
+              // Delete Drop Zone
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+                left: 0,
+                right: 0,
+                bottom: _isDragging ? 0 : -120,
+                height: 100,
+                child: DragTarget<Plant>(
+                  onAcceptWithDetails: (details) async {
+                    setState(() => _isDragging = false);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('식물 삭제'),
+                        content: const Text('정말 삭제하시겠습니까?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('취소'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text(
+                              '삭제',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true && mounted) {
+                      await _deletePlant(details.data.id);
+                    }
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    final isHovered = candidateData.isNotEmpty;
+                    // 기본색 rgb(219,25,25) / 호버 시 약 20% 어둡게
+                    const deleteColor = Color(0xFFDB1919);
+                    const deleteColorHover = Color(0xFFAF1414);
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: isHovered ? deleteColorHover : deleteColor,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: deleteColor.withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isHovered
+                                  ? Icons.delete_forever
+                                  : Icons.delete_outline,
+                              color: Colors.white,
+                              size: isHovered ? 38 : 30,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isHovered ? '놓으세요!' : '여기에 놓으면 삭제됩니다',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: isHovered ? 15 : 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
               // Sidebar
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 300),
@@ -315,13 +415,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     onClose: () =>
                         setState(() => _isSidebarOpen = false),
                     onNavigateToInput: _openInputScreen,
-                    onAllPlants: () => _selectCategory(null),
+                    onAllPlants: () {
+                      setState(() {
+                        _selectedCategory = null;
+                        _selectedDate = null;
+                        _isSidebarOpen = false;
+                      });
+                    },
                     onSelectCategory: _selectCategory,
                     onSearch: (query) => setState(() {
                       _activeSearchQuery = query;
                       _selectedCategory = null;
+                      _selectedDate = null;
                       _isSidebarOpen = false;
                     }),
+                    onDateSearch: _selectDateFilter,
+                    selectedDate: _selectedDate,
                     onSettings: () {
                       setState(() => _isSidebarOpen = false);
                       showAppSettingsDialog(context);
@@ -372,28 +481,36 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_filteredPlants.isEmpty) {
+      final emptyMessage = _activeSearchQuery.isNotEmpty
+          ? '검색 결과가 없습니다.'
+          : _selectedDate != null
+              ? '$_selectedDate에 물을 준 식물이 없습니다.'
+              : '등록된 식물이 없습니다.';
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_florist_outlined,
-                size: 64,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withOpacity(0.3)),
+            Icon(
+              _selectedDate != null
+                  ? Icons.water_drop_outlined
+                  : Icons.local_florist_outlined,
+              size: 64,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withOpacity(0.3),
+            ),
             const SizedBox(height: 16),
             Text(
-              _activeSearchQuery.isNotEmpty
-                  ? '검색 결과가 없습니다.'
-                  : '등록된 식물이 없습니다.',
+              emptyMessage,
               style: TextStyle(
                   color: Theme.of(context)
                       .colorScheme
                       .onSurface
                       .withOpacity(0.5)),
+              textAlign: TextAlign.center,
             ),
-            if (_activeSearchQuery.isEmpty) ...[
+            if (_activeSearchQuery.isEmpty && _selectedDate == null) ...[
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _openInputScreen,
@@ -424,6 +541,8 @@ class _HomeScreenState extends State<HomeScreen> {
             }),
             onEdit: () => _showEditDialog(plant),
             onUpdate: _updatePlant,
+            onDragStarted: () => setState(() => _isDragging = true),
+            onDragEnded: () => setState(() => _isDragging = false),
           ),
         );
       },
@@ -458,9 +577,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(8),
                 ),
                 Text(
-                  _selectedCategory ?? '내 식물',
+                  _selectedDate != null
+                      ? '물주기 $_selectedDate'
+                      : (_selectedCategory ?? '내 식물'),
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w500,
                   ),
@@ -538,6 +659,7 @@ class _EditPlantFormContentState
   late TextEditingController _notesCtrl;
   late List<String> _categories;
   late String _imageUrl;
+  bool _isUploading = false;
   late String _lastWatered;
 
   @override
@@ -550,8 +672,9 @@ class _EditPlantFormContentState
     _notesCtrl = TextEditingController(text: p.notes);
     _categories = List.from(p.categories);
     _imageUrl = p.imageUrl;
+    // ISO 8601 전체 문자열이 저장된 경우에도 날짜 부분(yyyy-MM-dd)만 추출
     _lastWatered = p.lastWatered.isNotEmpty
-        ? p.lastWatered
+        ? p.lastWatered.split('T')[0]
         : DateTime.now().toIso8601String().split('T')[0];
   }
 
@@ -571,9 +694,21 @@ class _EditPlantFormContentState
     }
     final picker = ImagePicker();
     final xFile = await picker.pickImage(source: ImageSource.gallery);
-    if (xFile != null && mounted) {
+    if (xFile == null || !mounted) return;
+
+    setState(() => _isUploading = true);
+    try {
       final compressed = await compressImage(xFile.path);
-      setState(() => _imageUrl = compressed);
+      final url = await uploadImageToStorage(compressed);
+      if (mounted) setState(() => _imageUrl = url);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 업로드에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -594,36 +729,16 @@ class _EditPlantFormContentState
 
   Future<void> _addCategory() async {
     if (_categories.length >= 5) return;
-    final ctrl = TextEditingController();
+    // 컨트롤러 생명주기를 _AddCategoryDialog StatefulWidget에 위임
+    // → 다이얼로그 닫기 애니메이션 완료 후 Flutter가 안전하게 dispose 호출
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('카테고리 추가'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration:
-              const InputDecoration(hintText: '카테고리 이름 입력'),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('추가'),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _AddCategoryDialog(),
     );
-    ctrl.dispose();
     if (result != null &&
         result.isNotEmpty &&
         !_categories.contains(result)) {
-      setState(() => _categories.add(result));
+      if (mounted) setState(() => _categories.add(result));
     }
   }
 
@@ -657,7 +772,7 @@ class _EditPlantFormContentState
           // 사진
           Center(
             child: GestureDetector(
-              onTap: _pickImage,
+              onTap: _isUploading ? null : _pickImage,
               child: Container(
                 width: 120,
                 height: 120,
@@ -666,17 +781,40 @@ class _EditPlantFormContentState
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: colorScheme.outline),
                 ),
-                child: _imageUrl.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(11),
-                        child: Image.file(
-                          File(_imageUrl),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _buildImagePlaceholder(colorScheme),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(11),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: _imageUrl.isNotEmpty
+                            ? (_imageUrl.startsWith('http')
+                                ? Image.network(
+                                    _imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _buildImagePlaceholder(colorScheme),
+                                  )
+                                : Image.file(
+                                    File(_imageUrl),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        _buildImagePlaceholder(colorScheme),
+                                  ))
+                            : _buildImagePlaceholder(colorScheme),
+                      ),
+                      if (_isUploading)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black45,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                  color: Colors.white),
+                            ),
+                          ),
                         ),
-                      )
-                    : _buildImagePlaceholder(colorScheme),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -717,55 +855,41 @@ class _EditPlantFormContentState
           ),
           const SizedBox(height: 12),
 
-          // 마지막 물 준 날짜
+          // 마지막 물 준 날짜 — InputDecorator 로 라벨을 OutlineInputBorder 상단에 고정
           GestureDetector(
             onTap: _selectDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 16),
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: BorderRadius.circular(4),
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: '마지막으로 물 준 날짜',
+                border: const OutlineInputBorder(),
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                prefixIcon: Icon(
+                  Icons.calendar_today,
+                  size: 20,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 16),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today,
-                      size: 20,
-                      color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '마지막으로 물 준 날짜',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _lastWatered,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              child: Text(
+                _lastWatered,
+                style: TextStyle(
+                    fontSize: 16, color: colorScheme.onSurface),
               ),
             ),
           ),
           const SizedBox(height: 12),
 
-          // 메모
+          // 메모 — floatingLabelBehavior.always 로 라벨을 항상 상단 테두리에 고정
           TextFormField(
             controller: _notesCtrl,
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: '메모',
+              hintText: '식물에 대한 메모를 입력하세요',
               border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+              floatingLabelBehavior: FloatingLabelBehavior.always,
             ),
           ),
           const SizedBox(height: 24),
@@ -774,7 +898,7 @@ class _EditPlantFormContentState
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submit,
+              onPressed: _isUploading ? null : _submit,
               style: ElevatedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(vertical: 16),
@@ -794,83 +918,62 @@ class _EditPlantFormContentState
   }
 
   Widget _buildCategoryField(ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outline),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '카테고리',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
-              if (_categories.length < 5)
-                SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: Icon(Icons.add,
-                        size: 20, color: colorScheme.primary),
-                    onPressed: _addCategory,
-                    tooltip: '카테고리 추가 (최대 5개)',
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
+    // InputDecorator 로 라벨을 OutlineInputBorder 상단에 고정
+    // 추가 버튼은 suffixIcon 으로 배치해 라벨과 겹치지 않게 처리
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: '카테고리',
+        border: const OutlineInputBorder(),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        contentPadding: const EdgeInsets.fromLTRB(12, 8, 4, 12),
+        suffixIcon: _categories.length < 5
+            ? IconButton(
+                padding: EdgeInsets.zero,
+                icon: Icon(Icons.add,
+                    size: 20, color: colorScheme.primary),
+                onPressed: _addCategory,
+                tooltip: '카테고리 추가 (최대 5개)',
+              )
+            : Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Align(
+                  alignment: Alignment.center,
+                  widthFactor: 1.0,
                   child: Text(
                     '최대 5개',
                     style: TextStyle(
                         fontSize: 11,
-                        color:
-                            colorScheme.onSurface.withOpacity(0.4)),
+                        color: colorScheme.onSurface.withOpacity(0.4)),
                   ),
                 ),
-            ],
-          ),
-          if (_categories.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                '+ 버튼으로 카테고리를 추가하세요 (최대 5개)',
-                style: TextStyle(
-                    fontSize: 13,
-                    color: colorScheme.onSurface.withOpacity(0.4)),
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: _categories
-                    .map(
-                      (cat) => Chip(
-                        label: Text(cat,
-                            style: const TextStyle(fontSize: 13)),
-                        onDeleted: () =>
-                            setState(() => _categories.remove(cat)),
-                        materialTapTargetSize:
-                            MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-        ],
+        suffixIconConstraints:
+            const BoxConstraints(minWidth: 36, minHeight: 36),
       ),
+      child: _categories.isEmpty
+          ? Text(
+              '+ 버튼으로 카테고리를 추가하세요 (최대 5개)',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.onSurface.withOpacity(0.4)),
+            )
+          : Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _categories
+                  .map(
+                    (cat) => Chip(
+                      label: Text(cat,
+                          style: const TextStyle(fontSize: 13)),
+                      onDeleted: () =>
+                          setState(() => _categories.remove(cat)),
+                      materialTapTargetSize:
+                          MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  )
+                  .toList(),
+            ),
     );
   }
 
@@ -885,6 +988,50 @@ class _EditPlantFormContentState
           '사진 추가',
           style: TextStyle(
               fontSize: 12, color: colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+}
+
+// ── 카테고리 추가 다이얼로그 ───────────────────────────────────────────────────
+// TextEditingController를 StatefulWidget 내부에서 관리해
+// 다이얼로그 닫기 애니메이션이 끝난 뒤 Flutter가 dispose()를 보장하도록 함
+// → "TextEditingController used after being disposed" 오류 방지
+class _AddCategoryDialog extends StatefulWidget {
+  const _AddCategoryDialog();
+
+  @override
+  State<_AddCategoryDialog> createState() => _AddCategoryDialogState();
+}
+
+class _AddCategoryDialogState extends State<_AddCategoryDialog> {
+  final TextEditingController _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('카테고리 추가'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: '카테고리 이름 입력'),
+        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _ctrl.text.trim()),
+          child: const Text('추가'),
         ),
       ],
     );

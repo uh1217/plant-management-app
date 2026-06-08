@@ -245,6 +245,7 @@ class _InputFormContentState extends State<_InputFormContent> {
   List<FocusNode> _categoryFocusNodes = [];
 
   String _imageUrl = '';
+  bool _isUploading = false;
   DateTime _lastWatered = DateTime.now();
 
   @override
@@ -285,9 +286,21 @@ class _InputFormContentState extends State<_InputFormContent> {
     }
     final picker = ImagePicker();
     final xFile = await picker.pickImage(source: ImageSource.gallery);
-    if (xFile != null && mounted) {
+    if (xFile == null || !mounted) return;
+
+    setState(() => _isUploading = true);
+    try {
       final compressed = await compressImage(xFile.path);
-      setState(() => _imageUrl = compressed);
+      final url = await uploadImageToStorage(compressed);
+      if (mounted) setState(() => _imageUrl = url);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 업로드에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -336,7 +349,7 @@ class _InputFormContentState extends State<_InputFormContent> {
       wateringFrequency:
           int.tryParse(_wateringFrequencyController.text.trim()) ?? 1,
       lastWatered: _lastWatered.toIso8601String().split('T')[0],
-      wateringHistory: [],
+      wateringHistory: [_lastWatered.toIso8601String().split('T')[0]],
       fertilizerHistory: [],
       notes: _notesController.text.trim(),
     );
@@ -376,7 +389,7 @@ class _InputFormContentState extends State<_InputFormContent> {
     final colorScheme = theme.colorScheme;
 
     return GestureDetector(
-      onTap: _pickImage,
+      onTap: _isUploading ? null : _pickImage,
       child: AspectRatio(
         aspectRatio: 1 / 1,
         child: Container(
@@ -391,9 +404,22 @@ class _InputFormContentState extends State<_InputFormContent> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: _imageUrl.isEmpty
-                ? _buildImagePlaceholder()
-                : _buildImagePreview(),
+            child: Stack(
+              children: [
+                _imageUrl.isEmpty
+                    ? _buildImagePlaceholder()
+                    : _buildImagePreview(),
+                if (_isUploading)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black45,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -822,7 +848,7 @@ class _InputFormContentState extends State<_InputFormContent> {
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _handleSubmit,
+            onPressed: _isUploading ? null : _handleSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,

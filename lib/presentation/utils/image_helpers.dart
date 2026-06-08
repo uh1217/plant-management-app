@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path/path.dart' as p;
@@ -20,6 +24,18 @@ Future<String> compressImage(String path) async {
   );
 
   return compressedFile?.path ?? path;
+}
+
+/// 로컬 이미지를 Firebase Storage에 업로드하고 다운로드 URL을 반환
+/// 저장 경로: users/{uid}/plants/{타임스탬프}.jpg
+Future<String> uploadImageToStorage(String localPath) async {
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+  final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('users/$uid/plants/$fileName');
+  await ref.putFile(File(localPath));
+  return await ref.getDownloadURL();
 }
 
 void showPermissionRequestDialog(BuildContext context) {

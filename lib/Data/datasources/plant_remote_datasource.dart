@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import 'package:plantapp_p/Data/models/gallery_photo_dto.dart';
 import 'package:plantapp_p/Data/models/plant_dto.dart';
@@ -41,7 +42,26 @@ class PlantRemoteDataSource {
 
   //WriteBatch 를 이용해 plant 객체만 지워지는게 아닌 하위의 gallery도 지움
   Future<void> deletePlant(String plantId) async {
+    // Storage에 업로드된 대표 이미지 삭제 시도
+    try {
+      final doc = await _plantsCol().doc(plantId).get();
+      final imageUrl = doc.data()?['image_url'] as String?;
+      if (imageUrl != null && imageUrl.startsWith('https://firebasestorage')) {
+        await FirebaseStorage.instance.refFromURL(imageUrl).delete();
+      }
+    } catch (_) {}
+
+    // gallery 서브컬렉션의 Storage 이미지도 삭제 시도
     final gallery = await _galleryCol(plantId).get();
+    for (final doc in gallery.docs) {
+      try {
+        final photoUrl = doc.data()['photo_url'] as String?;
+        if (photoUrl != null && photoUrl.startsWith('https://firebasestorage')) {
+          await FirebaseStorage.instance.refFromURL(photoUrl).delete();
+        }
+      } catch (_) {}
+    }
+
     final batch = _db.batch();
     for (final doc in gallery.docs) {
       batch.delete(doc.reference);

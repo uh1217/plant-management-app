@@ -70,7 +70,7 @@ android {
 
     packaging {
         jniLibs {
-            // 이 줄이 핵심입니다. 심볼 제거 작업을 아예 건너뛰게 합니다.
+            // 심볼 제거 작업을 아예 건너뜀
             //keepDebugSymbols.add("**/*.so") 
         }
         resources {

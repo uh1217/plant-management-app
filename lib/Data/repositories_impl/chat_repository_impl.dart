@@ -1,0 +1,27 @@
+import 'dart:typed_data';
+import 'package:plantapp_p/Data/datasources/gemini_datasource.dart';
+import 'package:plantapp_p/Domain/entities/chat_message.dart';
+import 'package:plantapp_p/Domain/repositories/chat_repository.dart';
+
+/// ChatRepository 구현체 - GeminiDataSource에 위임한다.
+class ChatRepositoryImpl implements ChatRepository {
+  ChatRepositoryImpl(this._dataSource);
+  final GeminiDataSource _dataSource;
+
+  @override
+  Future<ChatMessage> sendMessage({
+    required String uid,
+    required String text,
+    Uint8List? imageBytes,
+    String? imageMimeType,
+  }) =>
+      _dataSource.sendMessage(
+        uid: uid,
+        text: text,
+        imageBytes: imageBytes,
+        imageMimeType: imageMimeType,
+      );
+
+  @override
+  void resetSession() => _dataSource.resetSession();
+}

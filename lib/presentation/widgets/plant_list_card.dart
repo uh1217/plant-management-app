@@ -13,6 +13,8 @@ class PlantListCard extends StatefulWidget {
   final VoidCallback onSelect;
   final VoidCallback onEdit;
   final Function(Plant) onUpdate;
+  final VoidCallback? onDragStarted;
+  final VoidCallback? onDragEnded;
 
   const PlantListCard({
     super.key,
@@ -21,12 +23,15 @@ class PlantListCard extends StatefulWidget {
     required this.onSelect,
     required this.onEdit,
     required this.onUpdate,
+    this.onDragStarted,
+    this.onDragEnded,
   });
 
   @override
   State<PlantListCard> createState() => _PlantListCardState();
 }
 
+//날짜 계산산
 class _PlantListCardState extends State<PlantListCard> {
   int _getDaysUntilWatering() {
     final lastWatered = DateTime.parse(widget.plant.lastWatered);
@@ -200,12 +205,19 @@ class _PlantListCardState extends State<PlantListCard> {
             Center(
               child: InteractiveViewer(
                 child: widget.plant.imageUrl.isNotEmpty
-                    ? Image.file(
-                        File(widget.plant.imageUrl),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _buildPlaceholder(),
-                      )
+                    ? (widget.plant.imageUrl.startsWith('http')
+                        ? Image.network(
+                            widget.plant.imageUrl,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          )
+                        : Image.file(
+                            File(widget.plant.imageUrl),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          ))
                     : _buildPlaceholder(),
               ),
             ),
@@ -239,194 +251,231 @@ class _PlantListCardState extends State<PlantListCard> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final status = _getWateringStatus();
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: widget.onSelect,
-      onDoubleTap: widget.onEdit,
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.isSelected
-              ? colorScheme.primary.withOpacity(0.1)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color:
-                widget.isSelected ? colorScheme.primary : theme.dividerColor,
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(
-                  theme.brightness == Brightness.dark ? 0.15 : 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  Widget _buildCardContent(
+      Map<String, dynamic> status, ThemeData theme, ColorScheme colorScheme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.isSelected
+            ? colorScheme.primary.withOpacity(0.1)
+            : colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: widget.isSelected ? colorScheme.primary : theme.dividerColor,
+          width: 2,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: _showImageGallery,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: widget.plant.imageUrl.isNotEmpty
-                      ? Image.file(
-                          File(widget.plant.imageUrl),
-                          width: 80,
-                          height: 120,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildPlaceholder(),
-                        )
-                      : _buildPlaceholder(),
-                ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(
+                theme.brightness == Brightness.dark ? 0.15 : 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: _showImageGallery,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: widget.plant.imageUrl.isNotEmpty
+                    ? (widget.plant.imageUrl.startsWith('http')
+                        ? Image.network(
+                            widget.plant.imageUrl,
+                            width: 80,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          )
+                        : Image.file(
+                            File(widget.plant.imageUrl),
+                            width: 80,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _buildPlaceholder(),
+                          ))
+                    : _buildPlaceholder(),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.plant.name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: colorScheme.onSurface,
-                        decoration: TextDecoration.none,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.plant.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: colorScheme.onSurface,
+                      decoration: TextDecoration.none,
                     ),
-                    const SizedBox(height: 8),
-                    if (widget.plant.categories.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.local_offer,
-                              size: 14,
-                              color: colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                widget.plant.categories.join(', '),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color:
-                                      colorScheme.onSurface.withOpacity(0.6),
-                                  decoration: TextDecoration.none,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  if (widget.plant.categories.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
                         children: [
                           Icon(
-                            Icons.water_drop,
-                            size: 14,
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${widget.plant.wateringFrequency}일마다',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurface.withOpacity(0.6),
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '·',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurface.withOpacity(0.3),
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            status['text'],
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: status['color'],
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: GestureDetector(
-                        onTap: _showCalendarDialog,
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              size: 14,
-                              color: colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '최근: ${_formatDate(widget.plant.lastWatered)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.primary,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (widget.plant.notes.isNotEmpty)
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.description,
+                            Icons.local_offer,
                             size: 14,
                             color: colorScheme.onSurface.withOpacity(0.6),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              widget.plant.notes,
+                              widget.plant.categories.join(', '),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: colorScheme.onSurface.withOpacity(0.6),
                                 decoration: TextDecoration.none,
                               ),
-                              maxLines: 2,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                  ],
-                ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.water_drop,
+                          size: 14,
+                          color: colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${widget.plant.wateringFrequency}일마다',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withOpacity(0.6),
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '·',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurface.withOpacity(0.3),
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          status['text'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: status['color'],
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: GestureDetector(
+                      onTap: _showCalendarDialog,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '최근: ${_formatDate(widget.plant.lastWatered)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.primary,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (widget.plant.notes.isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.description,
+                          size: 14,
+                          color: colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.plant.notes,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurface.withOpacity(0.6),
+                              decoration: TextDecoration.none,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = _getWateringStatus();
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final cardContent = _buildCardContent(status, theme, colorScheme);
+
+    return LongPressDraggable<Plant>(
+      data: widget.plant,
+      delay: const Duration(milliseconds: 450),
+      onDragStarted: widget.onDragStarted,
+      onDragEnd: (_) => widget.onDragEnded?.call(),
+      feedback: Material(
+        // 드래그 중 손가락을 따라다니는 위젯: 실제 카드와 동일한 크기·디자인, 85% 불투명
+        elevation: 10,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          // 화면 너비(최대 430) - ListView 좌우 패딩(16+16=32) = 실제 카드 너비
+          width: MediaQuery.of(context).size.width.clamp(0.0, 430.0) - 32,
+          child: Opacity(
+            opacity: 0.85,
+            child: _buildCardContent(status, theme, colorScheme),
           ),
         ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: cardContent,
+      ),
+      child: GestureDetector(
+        onTap: widget.onSelect,
+        onDoubleTap: widget.onEdit,
+        child: cardContent,
       ),
     );
   }

@@ -2,7 +2,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    
+    <!-- 기기 재부팅 후 예약된 알람을 자동 복구하기 위한 권한 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Android 13+(API 33+) 알림 표시를 위한 런타임 권한 (사용자 허용 팝업) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Android 12+(API 31+) 설정한 정확한 시각에 알람을 발사하기 위한 권한 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+
     <application
         android:label="식물 관리"
         android:name="${applicationName}"
@@ -35,6 +41,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 예약된 알림을 실제로 수신·발사하는 리시버 -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+        <!-- 기기 재부팅 후 예약 알람을 복구하는 리시버 -->
         <receiver android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
           android:exported="true">
             <intent-filter>

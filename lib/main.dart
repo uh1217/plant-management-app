@@ -1,26 +1,38 @@
 //앱 실행, 전체 테마 설정, home_screen으로 라우팅
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'presentation/views/home_screen.dart';
 import 'presentation/app_theme.dart';
-//import 'presentation/alarm.dart';
 import 'presentation/views/login_screen.dart';
+import 'package:plantapp_p/core/services/notification_service.dart';
 
 // 파이어베이스 본체 (Firebase.initializeApp을 인식하게 해줌)
 import 'package:firebase_core/firebase_core.dart'; 
 // 파이어베이스 설정 파일 (DefaultFirebaseOptions를 인식하게 해줌)
 import 'firebase_options.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:plantapp_p/core/di/service_locator.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';  
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart'; 
 
-    void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized(); //비동기 작업 렌더링 준비
-  //await AlarmService.init();
+  // 알림 채널 초기화 및 알림 권한 요청 (Firebase보다 먼저 실행)
+  await NotificationService.instance.init();
   await Firebase.initializeApp( //firebase 와 앱 연결
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  // TODO(보안): 프로덕션 배포 전 App Check를 반드시 활성화할 것.
+  // App Check가 꺼져 있으면 firebase_options.dart를 얻은 누구나
+  // 이 프로젝트의 Gemini 쿼터를 무단 소비할 수 있음.
+  // 활성화 시 Firebase Console > App Check > Android > Play Integrity 등록 필요.
+  /*await FirebaseAppCheck.instance.activate(
+    androidProvider: kReleaseMode
+        ? AndroidProvider.playIntegrity
+        : AndroidProvider.debug,
+  );*/
 
   ServiceLocator.instance.init(); //init 동작 시점 먼저 나와야 함
   await AppTheme.loadTheme();
