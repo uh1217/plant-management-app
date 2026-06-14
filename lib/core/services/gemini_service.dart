@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 /// [페르소나]  _personaSystemInstruction 에 정의 (모델 생성 시 systemInstruction으로 고정)
 /// [RAG]       _buildRagContext(uid) 가 Firestore 식물 목록을 읽어 매 요청 프롬프트 앞에 주입
 class GeminiService {
-  static const String _modelName = 'gemini-2.0-flash';
+  static const String _modelName = 'gemini-3.5-flash';
 
   // ─── 페르소나 + 프롬프트 증강 지침 ───────────────────────────────────────
   // [페르소나] 모델의 역할·말투·대화 규칙
@@ -41,6 +41,19 @@ class GeminiService {
   late GenerativeModel _model;
   ChatSession? _chatSession;
 
+  // RAG 컨텍스트 캐시: 동일 UID에 대해 5분간 Firestore 재조회 생략
+  String? _cachedRagContext;
+  DateTime? _ragCachedAt;
+  String? _ragCachedUid;
+  static const _ragCacheTtl = Duration(minutes: 5);
+
+  /// 식물 추가·수정·삭제 후 호출해 RAG 캐시를 무효화
+  void invalidateRagCache() {
+    _cachedRagContext = null;
+    _ragCachedAt = null;
+    _ragCachedUid = null;
+  }
+
   /// ServiceLocator.init() 에서 호출 — Firebase 초기화 이후에 실행되어야 한다.
   void init() {
     _model = FirebaseAI.googleAI().generativeModel(
@@ -54,6 +67,15 @@ class GeminiService {
   // 반환된 문자열은 sendMessage 내부에서 사용자 질문 앞에 자동으로 삽입된다.
   // Firestore 오류 발생 시 빈 문자열을 반환해 Gemini 호출 자체는 계속 진행한다.
   Future<String> _buildRagContext(String uid) async {
+    final now = DateTime.now();
+    if (_cachedRagContext != null &&
+        _ragCachedUid == uid &&
+        _ragCachedAt != null &&
+        now.difference(_ragCachedAt!) < _ragCacheTtl) {
+      debugPrint('[GeminiService] RAG 캐시 사용 (Firestore 조회 생략)');
+      return _cachedRagContext!;
+    }
+
     QuerySnapshot<Map<String, dynamic>> snapshot;
     try {
       snapshot = await FirebaseFirestore.instance
@@ -67,7 +89,12 @@ class GeminiService {
       return '';
     }
 
-    if (snapshot.docs.isEmpty) return '';
+    if (snapshot.docs.isEmpty) {
+      _cachedRagContext = '';
+      _ragCachedAt = now;
+      _ragCachedUid = uid;
+      return '';
+    }
 
     final today = DateTime.now();
     final todayStr =
@@ -144,7 +171,10 @@ class GeminiService {
     }
 
     buffer.writeln('[ 식물 정보 끝 ]');
-    return buffer.toString();
+    _cachedRagContext = buffer.toString();
+    _ragCachedAt = now;
+    _ragCachedUid = uid;
+    return _cachedRagContext!;
   }
 
   /// Gemini 모델에 메시지를 전송하고 응답 텍스트를 반환한다.

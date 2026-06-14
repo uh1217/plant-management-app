@@ -1,13 +1,18 @@
 import 'package:plantapp_p/Data/datasources/auth_remote_datasource.dart';
 import 'package:plantapp_p/Data/datasources/gemini_datasource.dart';
+import 'package:plantapp_p/Data/datasources/location_datasource.dart';
 import 'package:plantapp_p/Data/datasources/plant_remote_datasource.dart';
+import 'package:plantapp_p/Data/datasources/weather_remote_datasource.dart';
 import 'package:plantapp_p/Data/repositories_impl/auth_repository_impl.dart';
 import 'package:plantapp_p/Data/repositories_impl/chat_repository_impl.dart';
 import 'package:plantapp_p/Data/repositories_impl/plant_repository_impl.dart';
+import 'package:plantapp_p/Data/repositories_impl/weather_repository_impl.dart';
 import 'package:plantapp_p/core/services/gemini_service.dart';
+import 'package:plantapp_p/core/services/weather_recommendation_service.dart';
 import 'package:plantapp_p/domain/repositories/auth_repository.dart';
 import 'package:plantapp_p/domain/repositories/plant_repository.dart';
 import 'package:plantapp_p/Domain/repositories/chat_repository.dart';
+import 'package:plantapp_p/Domain/repositories/weather_repository.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_plants_usecase.dart';
@@ -16,6 +21,9 @@ import 'package:plantapp_p/domain/usecases/sign_in_with_google_usecase.dart';
 import 'package:plantapp_p/domain/usecases/sign_out_usecase.dart';
 import 'package:plantapp_p/domain/usecases/water_plant_usecase.dart';
 import 'package:plantapp_p/Domain/usecases/send_message_usecase.dart';
+import 'package:plantapp_p/domain/usecases/get_weather_recommendation_usecase.dart';
+import 'package:plantapp_p/Domain/usecases/get_gallery_photos_usecase.dart';
+import 'package:plantapp_p/Domain/usecases/add_gallery_photo_usecase.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
 import 'package:plantapp_p/presentation/viewmodels/chat_view_model.dart';
@@ -28,6 +36,9 @@ class ServiceLocator {
   late final PlantRepository plantRepository;
   late final AuthRepository authRepository;
   late final ChatRepository chatRepository;
+  late final WeatherRepository weatherRepository;
+  late final GeminiService geminiService;
+  late final WeatherRecommendationService weatherRecommendationService;
 
   late final GetPlantsUseCase getPlantsUseCase;
   late final SavePlantUseCase savePlantUseCase;
@@ -37,19 +48,26 @@ class ServiceLocator {
   late final SignInWithGoogleUseCase signInWithGoogleUseCase;
   late final SignOutUseCase signOutUseCase;
   late final SendMessageUseCase sendMessageUseCase;
+  late final GetWeatherRecommendationUseCase getWeatherRecommendationUseCase;
+  late final GetGalleryPhotosUseCase getGalleryPhotosUseCase;
+  late final AddGalleryPhotoUseCase addGalleryPhotoUseCase;
 
   // @init 전에 각 유스케이스 실행 되면 안됨 -> late 변수들 ServiceLocator.instance.init() 전에 값 할당 안되서 에러
   void init() {
     // 데이터 소스 생성
     final plantDs = PlantRemoteDataSource();
     final authDs = AuthRemoteDataSource();
-    final geminiService = GeminiService()..init(); // Firebase 초기화 이후 실행
+    final locationDs = LocationDataSource();
+    final weatherDs = WeatherRemoteDataSource();
+    geminiService = GeminiService()..init(); // Firebase 초기화 이후 실행
+    weatherRecommendationService = WeatherRecommendationService()..init();
     final geminiDs = GeminiDataSource(geminiService);
 
     // RepositoryImpl 에 주입
     plantRepository = PlantRepositoryImpl(plantDs);
     authRepository = AuthRepositoryImpl(authDs);
     chatRepository = ChatRepositoryImpl(geminiDs);
+    weatherRepository = WeatherRepositoryImpl(weatherDs);
 
     // UseCases에 주입
     getPlantsUseCase = GetPlantsUseCase(plantRepository);
@@ -60,6 +78,13 @@ class ServiceLocator {
     signInWithGoogleUseCase = SignInWithGoogleUseCase(authRepository);
     signOutUseCase = SignOutUseCase(authRepository);
     sendMessageUseCase = SendMessageUseCase(chatRepository);
+    getWeatherRecommendationUseCase = GetWeatherRecommendationUseCase(
+      location: locationDs,
+      weather: weatherRepository,
+      recommendation: weatherRecommendationService,
+    );
+    getGalleryPhotosUseCase = GetGalleryPhotosUseCase(plantRepository);
+    addGalleryPhotoUseCase = AddGalleryPhotoUseCase(plantRepository);
   }
 
   // ViewModels은 화면이 닫힐 때 함께 메모리에서 해제되야 함
@@ -70,6 +95,9 @@ class ServiceLocator {
         waterPlant: waterPlantUseCase,
         fertilizePlant: fertilizePlantUseCase,
         signOut: signOutUseCase,
+        geminiService: geminiService,
+        getWeatherRecommendation: getWeatherRecommendationUseCase,
+        weatherRecommendationService: weatherRecommendationService,
       );
 
   LoginViewModel createLoginViewModel() => LoginViewModel(

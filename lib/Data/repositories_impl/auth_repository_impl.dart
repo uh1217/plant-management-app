@@ -9,11 +9,12 @@ class AuthRepositoryImpl implements AuthRepository {
   //실제 구글/Firebase 서버와 통신
   final AuthRemoteDataSource _remote;
 
-  //실시간 상태 파이프라인 연결
+  //실시간 상태 파이프라인 연결 -> 현재는 main에서 구현(FirebaseAuth.instance를 직접 구독)
   @override
   Stream<String?> get authStateChanges => _remote.authStateChanges;
 
   //중간에 인터넷으 끊기는 에러 처리 (Result 활용)
+  // AuthRemoteDataSource는 실패 시 예외(Exception)를 던짐 -> try-catch로 잡아 처리
   @override
   Future<Result<String>> signInWithGoogle() async {
     try {

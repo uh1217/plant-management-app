@@ -1,9 +1,11 @@
 //가로로 긴 카드 UI, 물주기 상태 표시 (색상 구분)
 //체크박스 선택, 최근 물 준 날짜 클릭 → 캘린더 팝업
-//이미지 클릭 → 갤러리 팝업, 더블클릭 → 편집 모달
+//이미지 클릭 → 식물 기록 일지 갤러리 팝업, 더블클릭 → 편집 모달
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/presentation/widgets/plant_gallery_dialog.dart';
 import 'dart:io';
 
 // PlantListCard.tsx 변환
@@ -195,49 +197,12 @@ class _PlantListCardState extends State<PlantListCard> {
     }
   }
 
-  void _showImageGallery() {
+  void _showPlantGalleryDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                child: widget.plant.imageUrl.isNotEmpty
-                    ? (widget.plant.imageUrl.startsWith('http')
-                        ? Image.network(
-                            widget.plant.imageUrl,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholder(),
-                          )
-                        : Image.file(
-                            File(widget.plant.imageUrl),
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholder(),
-                          ))
-                    : _buildPlaceholder(),
-              ),
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.black54,
-                  side: BorderSide(color: Colors.white.withOpacity(0.1)),
-                ),
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => PlantGalleryDialog(
+        plantId: widget.plant.id,
+        plantName: widget.plant.name,
       ),
     );
   }
@@ -245,8 +210,8 @@ class _PlantListCardState extends State<PlantListCard> {
   Widget _buildPlaceholder() {
     return Image.asset(
       'assets/images/home_gardening.jpg',
-      width: 80,
-      height: 120,
+      width: 100,
+      height: 125,
       fit: BoxFit.cover,
     );
   }
@@ -278,17 +243,24 @@ class _PlantListCardState extends State<PlantListCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              onTap: _showImageGallery,
+              onTap: _showPlantGalleryDialog,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: widget.plant.imageUrl.isNotEmpty
                     ? (widget.plant.imageUrl.startsWith('http')
-                        ? Image.network(
-                            widget.plant.imageUrl,
-                            width: 80,
-                            height: 120,
+                        ? CachedNetworkImage(
+                            imageUrl: widget.plant.imageUrl,
+                            width: 100,
+                            height: 125,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
+                            placeholder: (context, url) => const SizedBox(
+                              width: 80,
+                              height: 120,
+                              child: Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) =>
                                 _buildPlaceholder(),
                           )
                         : Image.file(

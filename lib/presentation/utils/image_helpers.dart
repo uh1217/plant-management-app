@@ -38,6 +38,19 @@ Future<String> uploadImageToStorage(String localPath) async {
   return await ref.getDownloadURL();
 }
 
+/// 갤러리 사진을 Firebase Storage에 업로드하고 다운로드 URL을 반환
+/// 저장 경로: users/{uid}/plants/{plantId}/gallery/{타임스탬프}.jpg
+Future<String> uploadGalleryImageToStorage(
+    String localPath, String plantId) async {
+  final uid = FirebaseAuth.instance.currentUser!.uid;
+  final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+  final ref = FirebaseStorage.instance
+      .ref()
+      .child('users/$uid/plants/$plantId/gallery/$fileName');
+  await ref.putFile(File(localPath));
+  return await ref.getDownloadURL();
+}
+
 void showPermissionRequestDialog(BuildContext context) {
   showDialog(
     context: context,

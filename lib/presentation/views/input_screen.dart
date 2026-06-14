@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
@@ -17,6 +19,7 @@ class InputScreen extends StatefulWidget {
     required this.onSave,
     this.onSearchRequested,
     this.onCategoryRequested,
+    this.guideMode = false,
   });
 
   final HomeViewModel viewModel;
@@ -28,12 +31,51 @@ class InputScreen extends StatefulWidget {
   /// 사이드바 카테고리 선택 시 HomeScreen에 카테고리를 전달하고 InputScreen을 닫음
   final void Function(String?)? onCategoryRequested;
 
+  /// true면 화면 진입 시 입력 폼 가이드(Phase 2)를 자동 시작
+  final bool guideMode;
+
   @override
   State<InputScreen> createState() => _InputScreenState();
 }
 
 class _InputScreenState extends State<InputScreen> {
   bool _isSidebarOpen = false;
+
+  // ── 사용자 가이드 (Phase 2) ───────────────────────────────────────────────
+  late final ShowcaseView _showcaseView;
+  final GlobalKey _inputFormGuideKey =
+      GlobalKey(debugLabel: 'guide_inputForm');
+
+  @override
+  void initState() {
+    super.initState();
+    _showcaseView = ShowcaseView.register(
+      scope: 'input',
+      onFinish: () {
+        // Phase 2 완료 → 홈으로 돌아가기
+        if (mounted) Navigator.pop(context);
+      },
+      globalTooltipActionConfig: const TooltipActionConfig(
+        position: TooltipActionPosition.outside,
+        alignment: MainAxisAlignment.end,
+      ),
+    );
+    if (widget.guideMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            _showcaseView.startShowCase([_inputFormGuideKey]);
+          }
+        });
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _showcaseView.unregister();
+    super.dispose();
+  }
 
   Future<void> _handleSave(Plant plant) async {
     try {
@@ -75,7 +117,21 @@ class _InputScreenState extends State<InputScreen> {
                 children: [
                   _buildHeader(),
                   Expanded(
-                    child: _InputFormContent(onSave: _handleSave),
+                    child: Showcase(
+                      key: _inputFormGuideKey,
+                      title: '식물 입력 화면',
+                      description:
+                          '사진·이름·카테고리·물주기 주기를 입력하고\n저장 버튼을 눌러 식물을 추가하세요',
+                      tooltipBackgroundColor: Colors.white,
+                      textColor: Colors.black87,
+                      tooltipActions: const [
+                        TooltipActionButton(
+                          type: TooltipDefaultActionType.next,
+                          name: '확인',
+                        ),
+                      ],
+                      child: _InputFormContent(onSave: _handleSave),
+                    ),
                   ),
                 ],
               ),
@@ -128,7 +184,13 @@ class _InputScreenState extends State<InputScreen> {
                     },
                     onUsageGuide: () {
                       setState(() => _isSidebarOpen = false);
-                      showAppUsageGuide(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              '가이드는 홈 화면의 사이드바에서 시작할 수 있어요'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
                     },
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
@@ -200,7 +262,7 @@ class _InputScreenState extends State<InputScreen> {
                         maxLines: 1,
                       ),
                       const SizedBox(height: 1),
-                      Text(
+                      const Text(
                         'Version 1.1.1',
                         style: TextStyle(
                             fontSize: 10,
@@ -542,10 +604,13 @@ class _InputFormContentState extends State<_InputFormContent> {
       );
     }
     if (_imageUrl.startsWith('http')) {
-      return Image.network(
-        _imageUrl,
+      return CachedNetworkImage(
+        imageUrl: _imageUrl,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _errorIcon(),
+        placeholder: (_, __) => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        errorWidget: (_, __, ___) => _errorIcon(),
       );
     }
     return Image.file(

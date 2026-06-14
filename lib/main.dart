@@ -11,6 +11,7 @@ import 'package:firebase_core/firebase_core.dart';
 // 파이어베이스 설정 파일 (DefaultFirebaseOptions를 인식하게 해줌)
 import 'firebase_options.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:plantapp_p/core/di/service_locator.dart';
@@ -21,8 +22,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized(); //비동기 작업 렌더링 준비
   // 알림 채널 초기화 및 알림 권한 요청 (Firebase보다 먼저 실행)
   await NotificationService.instance.init();
-  await Firebase.initializeApp( //firebase 와 앱 연결
+  await Firebase.initializeApp( //firebase 와 앱 연결 (Firebase SDK 초기화)
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // 오프라인 퍼시스턴스: 로컬 디스크에 Firestore 데이터를 캐시해
+  // 앱 재시작 시 네트워크 없이도 즉시 데이터를 표시하고, 백그라운드에서 동기화함.
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
   // TODO(보안): 프로덕션 배포 전 App Check를 반드시 활성화할 것.
   // App Check가 꺼져 있으면 firebase_options.dart를 얻은 누구나
@@ -94,17 +101,17 @@ class _AuthGateState extends State<_AuthGate> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(), // 로그인 상태 실시간 감지
       builder: (context, snapshot) {
-        // Firebase 연결 대기 중
+        // 1. Firebase 연결 대기 중 (FirebaseAuth가 로컬 캐시에서 세션 토큰 발견 → authStateChanges() 스트림이 User(non-null) 방출))
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        // 로그인 O → 홈 화면 (ViewModel 주입)
+        // 2. 로그인 O → 홈 화면 (ViewModel 주입)
         if (snapshot.hasData) {
           return HomeScreen(viewModel: _homeViewModel);
         }
-        // 로그인 X → 로그인 화면 (ViewModel 주입)
+        // 3. 로그인 X → 로그인 화면 (ViewModel 주입) -> 이 경우 로그인 로직 실행행
         return LoginScreen(viewModel: _loginViewModel);
       },
     );

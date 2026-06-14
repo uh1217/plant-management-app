@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
@@ -10,6 +11,7 @@ import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/views/input_screen.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
 import 'package:plantapp_p/presentation/widgets/plant_list_card.dart';
+import 'package:plantapp_p/presentation/widgets/weather_recommendation_card.dart';
 
 // 메인 컨테이너: 식물 목록, 수정 다이얼로그, 사이드바, 검색, 카테고리 필터링
 class HomeScreen extends StatefulWidget {
@@ -29,6 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Set<String> _selectedPlantIds = {};
   String _activeSearchQuery = '';
 
+  // ── 사용자 가이드 ─────────────────────────────────────────────────────────
+  late final ShowcaseView _showcaseView;
+  int _guideStep = 0; // 0=비활성, 1~7=활성 단계
+
+  // Phase 1: 홈 화면 사이드바 조작
+  final GlobalKey _menuBtnKey = GlobalKey(debugLabel: 'guide_menuBtn');
+  final GlobalKey _sidebarInputMenuKey =
+      GlobalKey(debugLabel: 'guide_sidebarInput');
+  final GlobalKey _sidebarBodyKey =
+      GlobalKey(debugLabel: 'guide_sidebarBody');
+
+  // Phase 3: 리스트 관리
+  final GlobalKey _plantCardKey = GlobalKey(debugLabel: 'guide_plantCard');
+  final GlobalKey _actionBtnsKey = GlobalKey(debugLabel: 'guide_actionBtns');
+
   HomeViewModel get _vm => widget.viewModel;
 
   @override
@@ -36,10 +53,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _vm.addListener(_onVmChanged);
     _initializeApp();
+    _showcaseView = ShowcaseView.register(
+      scope: 'home',
+      onComplete: _onGuideStepComplete,
+      globalTooltipActionConfig: const TooltipActionConfig(
+        position: TooltipActionPosition.outside,
+        alignment: MainAxisAlignment.end,
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _showcaseView.unregister();
     _vm.removeListener(_onVmChanged);
     super.dispose();
   }
@@ -48,9 +74,117 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
+  // ── 사용자 가이드 로직 ────────────────────────────────────────────────────
+
+  /// 사이드바 "사용 가이드" 탭 시 호출
+  void startUserGuide() {
+    if (!mounted) return;
+    _guideStep = 1;
+    _showcaseView.startShowCase([_menuBtnKey]);
+  }
+
+  /// showcaseView.onComplete — 각 step 완료 시 호출
+  void _onGuideStepComplete(int? index, GlobalKey key) {
+    if (_guideStep == 0) return;
+    _guideStep++;
+    _advanceGuide();
+  }
+
+  void _advanceGuide() {
+    if (!mounted) return;
+    if (_guideStep == 2) {
+      // Step 1 완료: 사이드바 자동 오픈 → 입력 메뉴 강조
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        setState(() => _isSidebarOpen = true);
+        await Future.delayed(const Duration(milliseconds: 420));
+        if (mounted) _showcaseView.startShowCase([_sidebarInputMenuKey]);
+      });
+    } else if (_guideStep == 3) {
+      // Step 2 완료: 사이드바 기능+카테고리 영역 강조
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showcaseView.startShowCase([_sidebarBodyKey]);
+      });
+    } else if (_guideStep == 4) {
+      // Step 3 완료: 사이드바 닫고 입력 화면으로 이동
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        setState(() => _isSidebarOpen = false);
+        await Future.delayed(const Duration(milliseconds: 350));
+        if (mounted) _openGuideInputScreen();
+      });
+    } else if (_guideStep == 5) {
+      // Phase 2 복귀 후: 식물 카드 강조 (또는 없으면 안내 후 종료)
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        if (_filteredPlants.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  '가이드 완료! 식물을 추가하면 카드 관리 기능을 이용할 수 있어요 🌱'),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          _guideStep = 0;
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (mounted) _showcaseView.startShowCase([_plantCardKey]);
+      });
+    } else if (_guideStep == 6) {
+      // Step 5 완료: 물주기·비료 버튼 강조
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showcaseView.startShowCase([_actionBtnsKey]);
+      });
+    } else if (_guideStep == 7) {
+      // 가이드 완료
+      _guideStep = 0;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('가이드 완료! 사이드바에서 언제든 다시 볼 수 있어요 🎉'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } else {
+      _guideStep = 0;
+    }
+  }
+
+  /// Phase 2: 입력 화면 (가이드 모드) 이동 및 Phase 3 시작
+  Future<void> _openGuideInputScreen() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InputScreen(
+          viewModel: _vm,
+          onSave: _addPlant,
+          guideMode: true,
+          onSearchRequested: (query) => setState(() {
+            _activeSearchQuery = query;
+            _selectedCategory = null;
+          }),
+          onCategoryRequested: (cat) => setState(() {
+            _selectedCategory = cat;
+            _activeSearchQuery = '';
+          }),
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _vm.loadPlants();
+    _guideStep = 5;
+    _advanceGuide();
+  }
+
   Future<void> _initializeApp() async {
     await _requestInitialPermissions();
+    await _vm.loadWeatherRecommendationSetting();
     await _vm.loadPlants();
+    // 식물 목록 로드 후 날씨 추천 카드 비동기 로드 (UI 블로킹 없음)
+    _vm.loadWeatherRecommendation();
   }
 
   // ── Plant Operations ──────────────────────────────────────────────────────
@@ -190,6 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     await _vm.loadPlants();
   }
+
 
   // ── Edit Dialog ───────────────────────────────────────────────────────────
 
@@ -437,8 +572,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     onUsageGuide: () {
                       setState(() => _isSidebarOpen = false);
-                      showAppUsageGuide(context);
+                      Future.delayed(
+                        const Duration(milliseconds: 300),
+                        () { if (mounted) startUserGuide(); },
+                      );
                     },
+                    guideInputMenuKey: _sidebarInputMenuKey,
+                    guideSidebarBodyKey: _sidebarBodyKey,
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
                       await _vm.signOut();
@@ -522,30 +662,77 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredPlants.length,
-      itemBuilder: (_, index) {
-        final plant = _filteredPlants[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: PlantListCard(
-            plant: plant,
-            isSelected: _selectedPlantIds.contains(plant.id),
-            onSelect: () => setState(() {
-              if (_selectedPlantIds.contains(plant.id)) {
-                _selectedPlantIds.remove(plant.id);
-              } else {
-                _selectedPlantIds.add(plant.id);
-              }
-            }),
-            onEdit: () => _showEditDialog(plant),
-            onUpdate: _updatePlant,
-            onDragStarted: () => setState(() => _isDragging = true),
-            onDragEnded: () => setState(() => _isDragging = false),
+    // 날씨 추천 카드 표시 조건: 전체 식물(카테고리·날짜·검색 없음) + 설정 ON
+    final showWeatherCard = _selectedCategory == null &&
+        _selectedDate == null &&
+        _activeSearchQuery.isEmpty &&
+        _vm.weatherRecommendationEnabled &&
+        (_vm.recommendationText != null ||
+            _vm.recommendationStatus == RecommendationStatus.loading);
+
+    return CustomScrollView(
+      slivers: [
+        if (showWeatherCard)
+          SliverToBoxAdapter(
+            child: WeatherRecommendationCard(
+              viewModel: _vm,
+              onRetry: () => _vm.loadWeatherRecommendation(),
+            ),
           ),
-        );
-      },
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+              16, showWeatherCard ? 8 : 16, 16, 16),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, index) {
+                final plant = _filteredPlants[index];
+                final card = PlantListCard(
+                  plant: plant,
+                  isSelected: _selectedPlantIds.contains(plant.id),
+                  onSelect: () => setState(() {
+                    if (_selectedPlantIds.contains(plant.id)) {
+                      _selectedPlantIds.remove(plant.id);
+                    } else {
+                      _selectedPlantIds.add(plant.id);
+                    }
+                  }),
+                  onEdit: () => _showEditDialog(plant),
+                  onUpdate: _updatePlant,
+                  onDragStarted: () =>
+                      setState(() => _isDragging = true),
+                  onDragEnded: () =>
+                      setState(() => _isDragging = false),
+                );
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Showcase(
+                      key: _plantCardKey,
+                      title: '식물 카드',
+                      description:
+                          '탭: 선택  ·  더블탭: 편집\n길게 누른 후 드래그: 삭제',
+                      tooltipBackgroundColor: Colors.white,
+                      textColor: Colors.black87,
+                      tooltipActions: const [
+                        TooltipActionButton(
+                          type: TooltipDefaultActionType.next,
+                          name: '다음',
+                        ),
+                      ],
+                      child: card,
+                    ),
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: card,
+                );
+              },
+              childCount: _filteredPlants.length,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -570,11 +757,25 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  onPressed: () =>
-                      setState(() => _isSidebarOpen = true),
-                  icon: Icon(Icons.menu, color: colorScheme.onSurface),
-                  padding: const EdgeInsets.all(8),
+                Showcase(
+                  key: _menuBtnKey,
+                  title: '사이드바',
+                  description:
+                      '탭하면 사이드바가 열립니다.\n다양한 기능에 접근해보세요!',
+                  tooltipBackgroundColor: Colors.white,
+                  textColor: Colors.black87,
+                  tooltipActions: const [
+                    TooltipActionButton(
+                      type: TooltipDefaultActionType.next,
+                      name: '다음',
+                    ),
+                  ],
+                  child: IconButton(
+                    onPressed: () =>
+                        setState(() => _isSidebarOpen = true),
+                    icon: Icon(Icons.menu, color: colorScheme.onSurface),
+                    padding: const EdgeInsets.all(8),
+                  ),
                 ),
                 Text(
                   _selectedDate != null
@@ -586,24 +787,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Row(
-                  children: [
-                    _buildActionButton(
-                      icon: Icons.eco,
-                      color: colorScheme.secondary,
-                      onPressed: _selectedPlantIds.isEmpty
-                          ? null
-                          : _handleFertilizeSelectedPlants,
-                    ),
-                    const SizedBox(width: 8),
-                    _buildActionButton(
-                      icon: Icons.water_drop,
-                      color: colorScheme.primary,
-                      onPressed: _selectedPlantIds.isEmpty
-                          ? null
-                          : _handleWaterSelectedPlants,
+                Showcase(
+                  key: _actionBtnsKey,
+                  title: '물주기 / 비료',
+                  description:
+                      '카드를 탭해 식물을 선택한 후\n이 버튼으로 물주기·비료 기록을 남기세요',
+                  tooltipBackgroundColor: Colors.white,
+                  textColor: Colors.black87,
+                  tooltipActions: const [
+                    TooltipActionButton(
+                      type: TooltipDefaultActionType.next,
+                      name: '완료',
                     ),
                   ],
+                  child: Row(
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.eco,
+                        color: colorScheme.secondary,
+                        onPressed: _selectedPlantIds.isEmpty
+                            ? null
+                            : _handleFertilizeSelectedPlants,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
+                        icon: Icons.water_drop,
+                        color: colorScheme.primary,
+                        onPressed: _selectedPlantIds.isEmpty
+                            ? null
+                            : _handleWaterSelectedPlants,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

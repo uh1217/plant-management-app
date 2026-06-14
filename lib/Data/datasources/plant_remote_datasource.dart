@@ -51,16 +51,19 @@ class PlantRemoteDataSource {
       }
     } catch (_) {}
 
-    // gallery 서브컬렉션의 Storage 이미지도 삭제 시도
+    // gallery 서브컬렉션의 Storage 이미지를 병렬로 삭제 시도
     final gallery = await _galleryCol(plantId).get();
-    for (final doc in gallery.docs) {
-      try {
-        final photoUrl = doc.data()['photo_url'] as String?;
-        if (photoUrl != null && photoUrl.startsWith('https://firebasestorage')) {
-          await FirebaseStorage.instance.refFromURL(photoUrl).delete();
-        }
-      } catch (_) {}
-    }
+    await Future.wait(
+      gallery.docs.map((doc) async {
+        try {
+          final photoUrl = doc.data()['photo_url'] as String?;
+          if (photoUrl != null &&
+              photoUrl.startsWith('https://firebasestorage')) {
+            await FirebaseStorage.instance.refFromURL(photoUrl).delete();
+          }
+        } catch (_) {}
+      }),
+    );
 
     final batch = _db.batch();
     for (final doc in gallery.docs) {

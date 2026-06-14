@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:plantapp_p/core/services/notification_service.dart';
@@ -8,6 +9,99 @@ import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/widgets/plant_agent_dialog.dart';
+
+// ── 날씨 추천 카드 설정 다이얼로그 ────────────────────────────────────────────
+
+Future<void> showWeatherRecommendationSettingsDialog(
+  BuildContext context,
+  HomeViewModel viewModel,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => _WeatherRecommendationSettingsDialog(viewModel: viewModel),
+  );
+}
+
+class _WeatherRecommendationSettingsDialog extends StatefulWidget {
+  const _WeatherRecommendationSettingsDialog({required this.viewModel});
+  final HomeViewModel viewModel;
+
+  @override
+  State<_WeatherRecommendationSettingsDialog> createState() =>
+      _WeatherRecommendationSettingsDialogState();
+}
+
+class _WeatherRecommendationSettingsDialogState
+    extends State<_WeatherRecommendationSettingsDialog> {
+  late bool _enabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.viewModel.weatherRecommendationEnabled;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Row(
+        children: [
+          Icon(Icons.wb_sunny_outlined),
+          SizedBox(width: 8),
+          Text('날씨 추천 카드', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SwitchListTile(
+            title: const Text('날씨 추천 카드'),
+            subtitle: Text(
+              _enabled
+                  ? '오전/오후 날씨 기반 식물 케어 알림 표시 중'
+                  : '날씨 추천 카드 꺼짐',
+            ),
+            value: _enabled,
+            activeColor: AppColors.primaryGreen,
+            onChanged: (value) {
+              setState(() => _enabled = value);
+            },
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              '전체 식물 보기에서 오전 6시(오늘 날씨)와 오후 6시(내일 날씨)에 맞춤 식물 케어 멘트를 표시합니다. 위치 권한이 필요합니다.',
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurface.withOpacity(0.55),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            await widget.viewModel.setWeatherRecommendationEnabled(_enabled);
+            if (_enabled) {
+              // ON으로 바꿀 때 즉시 로드
+              await widget.viewModel.loadWeatherRecommendation();
+            }
+            if (context.mounted) Navigator.pop(context);
+          },
+          child: const Text('저장'),
+        ),
+      ],
+    );
+  }
+}
 
 // ── 공용 다이얼로그 / 앱 액션 함수 ─────────────────────────────────────────────
 
@@ -54,95 +148,7 @@ void showAppSettingsDialog(BuildContext context) {
   );
 }
 
-void showAppUsageGuide(BuildContext context) {
-  final guideImages = [
-    'assets/images/6.jpg',
-    'assets/images/7.jpg',
-    'assets/images/8.jpg',
-    'assets/images/9.jpg',
-    'assets/images/10.jpg',
-  ];
-  final pageController = PageController();
-  showDialog<void>(
-    context: context,
-    builder: (_) {
-      int currentPage = 0;
-      return StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final screenSize = MediaQuery.of(ctx).size;
-          return Dialog(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              width: screenSize.width * 0.85,
-              height: screenSize.height * 0.7,
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
-                children: [
-                  PageView.builder(
-                    controller: pageController,
-                    itemCount: guideImages.length,
-                    onPageChanged: (p) =>
-                        setDialogState(() => currentPage = p),
-                    itemBuilder: (_, i) => InteractiveViewer(
-                      child: Image.asset(guideImages[i],
-                          fit: BoxFit.contain),
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: CircleAvatar(
-                      backgroundColor:
-                          Colors.black.withOpacity(0.5),
-                      radius: 18,
-                      child: IconButton(
-                        icon: const Icon(Icons.close,
-                            color: Colors.white, size: 20),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 20,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        guideImages.length,
-                        (i) => AnimatedContainer(
-                          duration:
-                              const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 4),
-                          height: 8,
-                          width: currentPage == i ? 20 : 8,
-                          decoration: BoxDecoration(
-                            color: currentPage == i
-                                ? Colors.white
-                                : Colors.white.withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+// showAppUsageGuide는 interactive guide로 교체됨 (home_screen.dart의 startUserGuide 참조)
 
 void _showPrivacyPolicy(BuildContext context) {
   showDialog<void>(
@@ -252,6 +258,8 @@ class AppSidebar extends StatefulWidget {
     this.isInputActive = false,
     this.onDateSearch,
     this.selectedDate,
+    this.guideInputMenuKey,
+    this.guideSidebarBodyKey,
   });
 
   final HomeViewModel viewModel;
@@ -273,6 +281,12 @@ class AppSidebar extends StatefulWidget {
   /// null 이면 날짜 검색 항목을 표시하지 않음
   final void Function(String isoDate)? onDateSearch;
   final String? selectedDate;
+
+  /// 사용 가이드 spotlight 키 — "입력 화면" 메뉴 항목 강조용
+  final GlobalKey? guideInputMenuKey;
+
+  /// 사용 가이드 spotlight 키 — 사이드바 전체 본문(기능+카테고리) 강조용
+  final GlobalKey? guideSidebarBodyKey;
 
   @override
   State<AppSidebar> createState() => _AppSidebarState();
@@ -381,6 +395,24 @@ class _AppSidebarState extends State<AppSidebar> {
               contentPadding: EdgeInsets.zero,
             ),
           ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(ctx);
+              showWeatherRecommendationSettingsDialog(
+                  context, widget.viewModel);
+            },
+            child: ListTile(
+              leading: const Icon(Icons.wb_sunny_outlined),
+              title: const Text('날씨 추천 카드'),
+              subtitle: Text(
+                widget.viewModel.weatherRecommendationEnabled
+                    ? '켜짐 — 오전/오후 식물 케어 멘트'
+                    : '꺼짐',
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
         ],
       ),
     );
@@ -446,25 +478,31 @@ class _AppSidebarState extends State<AppSidebar> {
 
             // ── 스크롤 가능 본문 ────────────────────────────────
             Expanded(
-              child: Scrollbar(
-                thumbVisibility: true,
-                child: SingleChildScrollView(
-                  primary: false,
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      children: [
-                        // 입력 화면
-                        _buildMenuItem(
-                          icon: Icons.add_circle_outline,
-                          label: '입력 화면',
-                          isSelected: widget.isInputActive,
-                          onTap: widget.isInputActive
-                              ? widget.onClose
-                              : (widget.onNavigateToInput ??
-                                  widget.onClose),
-                        ),
+              child: _wrapWithShowcase(
+                showcaseKey: widget.guideSidebarBodyKey,
+                title: '사이드바 기능',
+                description: '설정·AI 챗봇·카테고리 등 다양한 기능에 접근할 수 있어요',
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    primary: false,
+                    physics: const BouncingScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        children: [
+                          // 입력 화면
+                          _buildMenuItem(
+                            icon: Icons.add_circle_outline,
+                            label: '입력 화면',
+                            isSelected: widget.isInputActive,
+                            onTap: widget.isInputActive
+                                ? widget.onClose
+                                : (widget.onNavigateToInput ??
+                                    widget.onClose),
+                            showcaseKey: widget.guideInputMenuKey,
+                            showcaseDescription: '여기서 새 식물 추가 화면으로 이동합니다',
+                          ),
                         // 전체 식물
                         _buildMenuItem(
                           icon: Icons.list,
@@ -583,24 +621,25 @@ class _AppSidebarState extends State<AppSidebar> {
                               .map((cat) => _buildCategoryItem(cat)),
                         ],
 
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(
-                              Icons.contact_support_outlined),
-                          title: const Text('고객 문의'),
-                          subtitle: const Text(
-                            '불편한 점이나 제안사항을 보내주세요',
-                            style: TextStyle(fontSize: 12),
+                          const Divider(),
+                          ListTile(
+                            leading: const Icon(
+                                Icons.contact_support_outlined),
+                            title: const Text('고객 문의'),
+                            subtitle: const Text(
+                              '불편한 점이나 제안사항을 보내주세요',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onTap: widget.onContactEmail,
                           ),
-                          onTap: widget.onContactEmail,
-                        ),
-                        ListTile(
-                          leading:
-                              const Icon(Icons.info_outline),
-                          title: const Text('앱 정보'),
-                          onTap: widget.onAppInfo,
-                        ),
-                      ],
+                          ListTile(
+                            leading:
+                                const Icon(Icons.info_outline),
+                            title: const Text('앱 정보'),
+                            onTap: widget.onAppInfo,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -612,15 +651,40 @@ class _AppSidebarState extends State<AppSidebar> {
     );
   }
 
+  Widget _wrapWithShowcase({
+    required GlobalKey? showcaseKey,
+    required String title,
+    required String description,
+    required Widget child,
+  }) {
+    if (showcaseKey == null) return child;
+    return Showcase(
+      key: showcaseKey,
+      title: title,
+      description: description,
+      tooltipBackgroundColor: Colors.white,
+      textColor: Colors.black87,
+      tooltipActions: const [
+        TooltipActionButton(
+          type: TooltipDefaultActionType.next,
+          name: '다음',
+        ),
+      ],
+      child: child,
+    );
+  }
+
   Widget _buildMenuItem({
     required IconData icon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
     Widget? trailing,
+    GlobalKey? showcaseKey,
+    String? showcaseDescription,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return InkWell(
+    final item = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -658,6 +722,22 @@ class _AppSidebarState extends State<AppSidebar> {
         ),
       ),
     );
+    if (showcaseKey != null && showcaseDescription != null) {
+      return Showcase(
+        key: showcaseKey,
+        description: showcaseDescription,
+        tooltipBackgroundColor: Colors.white,
+        textColor: Colors.black87,
+        tooltipActions: const [
+          TooltipActionButton(
+            type: TooltipDefaultActionType.next,
+            name: '다음',
+          ),
+        ],
+        child: item,
+      );
+    }
+    return item;
   }
 
   /// 식물 Agent 메뉴 항목 — 강조 배지 포함 특수 스타일
