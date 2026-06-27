@@ -229,6 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedCategory = category;
       _selectedDate = null;
+      _activeSearchQuery = '';
       _isSidebarOpen = false;
     });
   }
@@ -554,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() {
                         _selectedCategory = null;
                         _selectedDate = null;
+                        _activeSearchQuery = '';
                         _isSidebarOpen = false;
                       });
                     },
@@ -778,9 +780,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Text(
-                  _selectedDate != null
-                      ? '물주기 $_selectedDate'
-                      : (_selectedCategory ?? '내 식물'),
+                  _activeSearchQuery.isNotEmpty
+                      ? "'$_activeSearchQuery' 검색"
+                      : _selectedDate != null
+                          ? '물주기 $_selectedDate'
+                          : (_selectedCategory ?? '내 식물'),
                   style: TextStyle(
                     fontSize: 16,
                     color: colorScheme.onSurface,

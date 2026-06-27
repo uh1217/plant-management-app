@@ -37,8 +37,10 @@ class PlantListCard extends StatefulWidget {
 class _PlantListCardState extends State<PlantListCard> {
   int _getDaysUntilWatering() {
     final lastWatered = DateTime.parse(widget.plant.lastWatered);
-    final today = DateTime.now();
-    final daysSinceWatered = today.difference(lastWatered).inDays;
+    final now = DateTime.now();
+    final lastDate = DateTime(lastWatered.year, lastWatered.month, lastWatered.day);
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final daysSinceWatered = todayDate.difference(lastDate).inDays;
     final daysUntil = widget.plant.wateringFrequency - daysSinceWatered;
     return daysUntil;
   }
@@ -47,23 +49,39 @@ class _PlantListCardState extends State<PlantListCard> {
     final colorScheme = Theme.of(context).colorScheme;
     final daysUntil = _getDaysUntilWatering();
 
-    if (daysUntil <= 0) {
+    const Color green  = Color(0xFF16A34A); // green-700
+    const Color yellow = Color(0xFFCA8A04); // yellow-600
+    const Color brown  = Color(0xFF795548);
+
+    if (daysUntil >= 4) {
+      return {
+        'text': '$daysUntil일 후',
+        'color': colorScheme.primary,
+        'bg': colorScheme.primary.withOpacity(0.1),
+      };
+    } else if (daysUntil >= 1) {
+      return {
+        'text': '$daysUntil일 후',
+        'color': green,
+        'bg': green.withOpacity(0.1),
+      };
+    } else if (daysUntil >= -1) {
       return {
         'text': '물이 필요해요!',
         'color': colorScheme.error,
         'bg': colorScheme.error.withOpacity(0.1),
       };
-    } else if (daysUntil <= 2) {
+    } else if (daysUntil >= -3) {
       return {
-        'text': '$daysUntil일 후',
-        'color': colorScheme.tertiary,
-        'bg': colorScheme.tertiary.withOpacity(0.1),
+        'text': '${daysUntil.abs()}일 지남',
+        'color': yellow,
+        'bg': yellow.withOpacity(0.1),
       };
     } else {
       return {
-        'text': '$daysUntil일 후',
-        'color': colorScheme.secondary,
-        'bg': colorScheme.secondary.withOpacity(0.1),
+        'text': '${daysUntil.abs()}일 지남',
+        'color': brown,
+        'bg': brown.withOpacity(0.1),
       };
     }
   }
