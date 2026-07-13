@@ -41,6 +41,16 @@ class SendMessageUseCase {
     }
   }
 
+  /// 스트리밍 방식으로 메시지를 전송한다.
+  /// ViewModel에서 청크마다 UI를 갱신할 때 사용한다.
+  Stream<String> callStream(SendMessageParams params) =>
+      _repository.sendMessageStream(
+        uid: params.uid,
+        text: params.text,
+        imageBytes: params.imageBytes,
+        imageMimeType: params.imageMimeType,
+      );
+
   /// 멀티턴 대화 세션 초기화 (새 대화 시작 시 호출)
   void resetSession() => _repository.resetSession();
 }

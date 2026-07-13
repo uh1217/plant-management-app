@@ -15,6 +15,14 @@ abstract class ChatRepository {
     String? imageMimeType,
   });
 
+  /// Gemini 응답을 청크 단위 Stream으로 반환한다. (스트리밍 전송용)
+  Stream<String> sendMessageStream({
+    required String uid,
+    required String text,
+    Uint8List? imageBytes,
+    String? imageMimeType,
+  });
+
   /// 현재 멀티턴 대화 세션을 초기화한다.
   void resetSession();
 }

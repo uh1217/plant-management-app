@@ -22,6 +22,21 @@ class ChatRepositoryImpl implements ChatRepository {
         imageMimeType: imageMimeType,
       );
 
+  /// DataSource의 스트리밍 메서드에 위임한다.
+  @override
+  Stream<String> sendMessageStream({
+    required String uid,
+    required String text,
+    Uint8List? imageBytes,
+    String? imageMimeType,
+  }) =>
+      _dataSource.sendMessageStream(
+        uid: uid,
+        text: text,
+        imageBytes: imageBytes,
+        imageMimeType: imageMimeType,
+      );
+
   @override
   void resetSession() => _dataSource.resetSession();
 }

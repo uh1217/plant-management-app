@@ -12,6 +12,7 @@ class PlantMapper {
         lastWatered: dto.lastWatered,
         wateringHistory: dto.wateringHistory,
         fertilizerHistory: dto.fertilizerHistory,
+        pesticideHistory: dto.pesticideHistory,
         notes: dto.notes,
       );
 
@@ -24,6 +25,7 @@ class PlantMapper {
         lastWatered: entity.lastWatered,
         wateringHistory: entity.wateringHistory,
         fertilizerHistory: entity.fertilizerHistory,
+        pesticideHistory: entity.pesticideHistory,
         notes: entity.notes,
       );
 }

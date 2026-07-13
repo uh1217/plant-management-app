@@ -8,6 +8,7 @@ class Plant {
   final String lastWatered; // 최근 물 준 날짜 (ISO 형식)
   final List<String> wateringHistory; // 물 준 날짜들
   final List<String> fertilizerHistory; // 비료 준 날짜들
+  final List<String> pesticideHistory; // 농약 준 날짜들
   final String notes;
 
   const Plant({
@@ -19,6 +20,7 @@ class Plant {
     required this.lastWatered,
     required this.wateringHistory,
     required this.fertilizerHistory,
+    required this.pesticideHistory,
     required this.notes,
   });
 
@@ -31,6 +33,7 @@ class Plant {
     String? lastWatered,
     List<String>? wateringHistory,
     List<String>? fertilizerHistory,
+    List<String>? pesticideHistory,
     String? notes,
   }) {
     return Plant(
@@ -42,6 +45,7 @@ class Plant {
       lastWatered: lastWatered ?? this.lastWatered,
       wateringHistory: wateringHistory ?? this.wateringHistory,
       fertilizerHistory: fertilizerHistory ?? this.fertilizerHistory,
+      pesticideHistory: pesticideHistory ?? this.pesticideHistory,
       notes: notes ?? this.notes,
     );
   }

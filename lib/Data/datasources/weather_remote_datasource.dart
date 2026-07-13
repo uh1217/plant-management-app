@@ -6,15 +6,13 @@ import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/Data/models/weather_forecast_dto.dart';
 import 'package:plantapp_p/Domain/entities/weather_forecast.dart';
 
-/// OpenWeatherMap /data/2.5/forecast 호출 및 날씨 집계 담당 데이터 소스
+/// Firebase Cloud Functions를 통해 날씨 예보를 가져오는 데이터 소스
 ///
-/// API 키는 --dart-define=OWM_API_KEY=xxx 빌드 인수로 주입한다.
+/// OWM API 키는 서버(Secret Manager)에만 보관되며 앱 코드에는 포함되지 않는다.
 /// 슬롯 기반 메모리 캐시를 적용해 슬롯 경계(06:00/18:00) 전까지 재조회를 생략한다.
 class WeatherRemoteDataSource {
-  static const String _apiKey =
-      String.fromEnvironment('OWM_API_KEY', defaultValue: '');
-  static const String _baseUrl =
-      'https://api.openweathermap.org/data/2.5/forecast';
+  static const String _functionsBaseUrl =
+      'https://asia-northeast3-plant-management-app-db.cloudfunctions.net/getWeatherForecast';
 
   WeatherForecast? _cachedForecast;
   RecommendationSlot? _cachedSlot;
@@ -42,15 +40,11 @@ class WeatherRemoteDataSource {
       return Success(_cachedForecast!);
     }
 
-    if (_apiKey.isEmpty) {
-      return const Failure(error: 'no_api_key', message: 'OWM_API_KEY가 설정되지 않았습니다. --dart-define=OWM_API_KEY=xxx 로 빌드하세요.');
-    }
-
     try {
       final uri = Uri.parse(
-        '$_baseUrl?lat=$lat&lon=$lon&appid=$_apiKey&units=metric&lang=ko&cnt=16',
+        '$_functionsBaseUrl?lat=$lat&lon=$lon',
       );
-      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      final response = await http.get(uri).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 429) {
         return const Failure(error: 'rate_limit', message: '날씨 API 요청 한도를 초과했습니다. (HTTP 429)');

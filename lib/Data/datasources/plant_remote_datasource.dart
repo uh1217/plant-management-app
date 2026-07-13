@@ -73,17 +73,51 @@ class PlantRemoteDataSource {
     await batch.commit();
   }
 
-  //Firestore의 기능인 FieldValue.arrayUnion 를 사용해 배열의 맨뒤에 날짜 추가
+  static const _historyLimit = 3;
+
+  // 트랜잭션으로 읽기 → 추가(중복 제거) → 최신 3개만 유지 → 쓰기
   Future<void> waterPlant(String plantId, String date) async {
-    await _plantsCol().doc(plantId).update({
-      'last_watered': date,
-      'watering_history': FieldValue.arrayUnion([date]),
+    final docRef = _plantsCol().doc(plantId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      final history =
+          List<String>.from(snap.data()?['watering_history'] ?? const []);
+      if (!history.contains(date)) history.add(date);
+      final trimmed = history.length > _historyLimit
+          ? history.sublist(history.length - _historyLimit)
+          : history;
+      tx.update(docRef, {
+        'last_watered': date,
+        'watering_history': trimmed,
+      });
     });
   }
 
   Future<void> fertilizePlant(String plantId, String date) async {
-    await _plantsCol().doc(plantId).update({
-      'fertilizer_history': FieldValue.arrayUnion([date]),
+    final docRef = _plantsCol().doc(plantId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      final history =
+          List<String>.from(snap.data()?['fertilizer_history'] ?? const []);
+      if (!history.contains(date)) history.add(date);
+      final trimmed = history.length > _historyLimit
+          ? history.sublist(history.length - _historyLimit)
+          : history;
+      tx.update(docRef, {'fertilizer_history': trimmed});
+    });
+  }
+
+  Future<void> pesticidePlant(String plantId, String date) async {
+    final docRef = _plantsCol().doc(plantId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(docRef);
+      final history =
+          List<String>.from(snap.data()?['pesticide_history'] ?? const []);
+      if (!history.contains(date)) history.add(date);
+      final trimmed = history.length > _historyLimit
+          ? history.sublist(history.length - _historyLimit)
+          : history;
+      tx.update(docRef, {'pesticide_history': trimmed});
     });
   }
 

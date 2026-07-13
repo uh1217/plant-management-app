@@ -39,6 +39,8 @@ class GeminiService {
 * 병충해 질문 시: 사용자의 정보가 모호하다면, 잎의 증상이나 해충의 생김새(색깔, 크기 등)를 조금 더 구체적으로 묘사해 달라고 정중히 부탁해.
 * 정보 부족 시: 사진이 너무 흐리거나 텍스트 정보가 부족해 정확한 진단이 어렵다면, 무리해서 추측하지 말고 정중하게 추가 사진이나 설명을 요청해.
 * 말투: 항상 사용자를 존중하고 다정하며 친절한 전문가의 어조를 유지해.
+* 인삿말 금지: "안녕하세요", "반갑습니다", "도움이 되셨으면 좋겠습니다" 등 인삿말이나 마무리 인사는 절대 쓰지 마. 바로 본론부터 시작해.
+* 서식 금지: *, **, #, ##, -, ``` 같은 마크다운 기호를 절대 사용하지 마. 모든 답변은 일반 텍스트로만 작성해.
 
 # 사용자 식물 데이터 활용 지침 (프롬프트 증강)
 대화 맥락 앞부분에 "[ 사용자 등록 식물 정보 ]" 섹션이 제공될 수 있어.
@@ -383,6 +385,55 @@ class GeminiService {
     debugPrint(
         '[GeminiService] 응답 수신: ${response.text?.substring(0, response.text!.length.clamp(0, 80))}...');
     return response.text ?? '';
+  }
+
+  /// 스트리밍 방식으로 메시지를 전송한다.
+  /// RAG 로직은 sendMessage와 동일하며, 응답 텍스트를 청크 단위로 yield한다.
+  /// UI에서 첫 글자부터 즉시 표시되어 체감 속도가 개선된다.
+  Stream<String> sendMessageStream({
+    required String uid,
+    required String text,
+    Uint8List? imageBytes,
+    String mimeType = 'image/jpeg',
+  }) async* {
+    _chatSession ??= _model.startChat();
+
+    // RAG 컨텍스트 구성 (sendMessage와 동일한 흐름)
+    final plantEntries = await _getPlantNameCache(uid);
+    final matchedIds = _matchPlantNames(text, plantEntries);
+
+    String ragContext;
+    if (matchedIds.isNotEmpty) {
+      ragContext = await _buildRagContextForIds(uid, matchedIds);
+    } else {
+      final intent = await _classifyIntent(text, plantEntries, imageBytes != null);
+      if (intent == _QueryIntent.allPlants) {
+        ragContext = await _buildRagContext(uid);
+      } else {
+        ragContext = '';
+      }
+    }
+
+    final promptText = ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text';
+
+    final Content content;
+    if (imageBytes != null) {
+      content = Content.multi([
+        TextPart(promptText),
+        InlineDataPart(mimeType, imageBytes),
+      ]);
+    } else {
+      content = Content.text(promptText);
+    }
+
+    debugPrint('[GeminiService] 스트리밍 전송 시작 (이미지: ${imageBytes != null})');
+
+    // sendMessage 대신 sendMessageStream으로 청크 단위 수신
+    final stream = _chatSession!.sendMessageStream(content);
+    await for (final chunk in stream) {
+      final chunkText = chunk.text ?? '';
+      if (chunkText.isNotEmpty) yield chunkText;
+    }
   }
 
   /// 현재 멀티턴 세션을 폐기한다. 다음 sendMessage 호출 시 새 세션이 생성된다.

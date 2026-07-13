@@ -8,6 +8,7 @@ class PlantDto {
   final String lastWatered;
   final List<String> wateringHistory;
   final List<String> fertilizerHistory;
+  final List<String> pesticideHistory;
   final String notes;
 
   const PlantDto({
@@ -19,6 +20,7 @@ class PlantDto {
     required this.lastWatered,
     required this.wateringHistory,
     required this.fertilizerHistory,
+    required this.pesticideHistory,
     required this.notes,
   });
 
@@ -33,6 +35,8 @@ class PlantDto {
       wateringHistory: List<String>.from(map['watering_history'] ?? const []),
       fertilizerHistory:
           List<String>.from(map['fertilizer_history'] ?? const []),
+      pesticideHistory:
+          List<String>.from(map['pesticide_history'] ?? const []),
       notes: map['notes'] as String? ?? '',
     );
   }
@@ -46,6 +50,7 @@ class PlantDto {
       'last_watered': lastWatered,
       'watering_history': wateringHistory,
       'fertilizer_history': fertilizerHistory,
+      'pesticide_history': pesticideHistory,
       'notes': notes,
     };
   }

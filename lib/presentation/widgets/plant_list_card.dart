@@ -5,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/presentation/app_colors.dart';
+import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/widgets/plant_gallery_dialog.dart';
 import 'dart:io';
 
@@ -48,40 +50,36 @@ class _PlantListCardState extends State<PlantListCard> {
   Map<String, dynamic> _getWateringStatus() {
     final colorScheme = Theme.of(context).colorScheme;
     final daysUntil = _getDaysUntilWatering();
+    final isStarbucks =
+        AppTheme.themeNotifier.value == AppThemeType.starbucks;
 
     const Color green  = Color(0xFF16A34A); // green-700
     const Color yellow = Color(0xFFCA8A04); // yellow-600
-    const Color brown  = Color(0xFF795548);
 
-    if (daysUntil >= 4) {
+    if (daysUntil >= 3) {
+      // 3일 이상 여유 → 초록 (starbucks 테마는 흰색)
+      final color = isStarbucks ? Colors.white : green;
       return {
         'text': '$daysUntil일 후',
-        'color': colorScheme.primary,
-        'bg': colorScheme.primary.withOpacity(0.1),
+        'color': color,
+        'bg': color.withOpacity(0.15),
       };
     } else if (daysUntil >= 1) {
+      // 1~2일 남음 → 노란
       return {
         'text': '$daysUntil일 후',
-        'color': green,
-        'bg': green.withOpacity(0.1),
-      };
-    } else if (daysUntil >= -1) {
-      return {
-        'text': '물이 필요해요!',
-        'color': colorScheme.error,
-        'bg': colorScheme.error.withOpacity(0.1),
-      };
-    } else if (daysUntil >= -3) {
-      return {
-        'text': '${daysUntil.abs()}일 지남',
         'color': yellow,
         'bg': yellow.withOpacity(0.1),
       };
     } else {
+      // 오늘 포함, 초과 → 빨간
+      final text = daysUntil == 0
+          ? '물이 필요해요!'
+          : '${daysUntil.abs()}일 지남';
       return {
-        'text': '${daysUntil.abs()}일 지남',
-        'color': brown,
-        'bg': brown.withOpacity(0.1),
+        'text': text,
+        'color': colorScheme.error,
+        'bg': colorScheme.error.withOpacity(0.1),
       };
     }
   }
@@ -94,8 +92,11 @@ class _PlantListCardState extends State<PlantListCard> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: colorScheme.surface,
-        title: Text('${widget.plant.name} 물주기 기록'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        title: Text(
+          '${widget.plant.name} 물주기 기록',
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
@@ -105,21 +106,21 @@ class _PlantListCardState extends State<PlantListCard> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: status['bg'],
+                  color: AppColors.statusRed.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.water_drop,
-                      color: status['color'],
+                      color: AppColors.statusRed,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       status['text'],
-                      style: TextStyle(
-                        color: status['color'],
+                      style: const TextStyle(
+                        color: AppColors.statusRed,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -132,7 +133,7 @@ class _PlantListCardState extends State<PlantListCard> {
                 style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 14,
-                  color: colorScheme.onSurface,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 8),
@@ -143,8 +144,8 @@ class _PlantListCardState extends State<PlantListCard> {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryBlue,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -153,7 +154,7 @@ class _PlantListCardState extends State<PlantListCard> {
                           _formatDate(date),
                           style: TextStyle(
                             fontSize: 14,
-                            color: colorScheme.onSurface.withOpacity(0.7),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -161,11 +162,12 @@ class _PlantListCardState extends State<PlantListCard> {
                   )),
               if (widget.plant.fertilizerHistory.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   '🌿 비료 준 날짜',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -176,8 +178,8 @@ class _PlantListCardState extends State<PlantListCard> {
                           Container(
                             width: 8,
                             height: 8,
-                            decoration: BoxDecoration(
-                              color: colorScheme.secondary,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryGreen,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -186,7 +188,42 @@ class _PlantListCardState extends State<PlantListCard> {
                             _formatDate(date),
                             style: TextStyle(
                               fontSize: 14,
-                              color: colorScheme.onSurface.withOpacity(0.7),
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+              if (widget.plant.pesticideHistory.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  '🧪 농약 준 날짜',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...widget.plant.pesticideHistory.map((date) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.yellow200,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatDate(date),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -199,7 +236,8 @@ class _PlantListCardState extends State<PlantListCard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('닫기'),
+            child: Text('닫기',
+                style: TextStyle(color: colorScheme.onSurfaceVariant)),
           ),
         ],
       ),
@@ -239,8 +277,10 @@ class _PlantListCardState extends State<PlantListCard> {
     return Container(
       decoration: BoxDecoration(
         color: widget.isSelected
-            ? colorScheme.primary.withOpacity(0.1)
-            : colorScheme.surface,
+            ? Color.alphaBlend(
+                colorScheme.primary.withOpacity(0.15),
+                colorScheme.surfaceContainer)
+            : colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: widget.isSelected ? colorScheme.primary : theme.dividerColor,
@@ -302,7 +342,7 @@ class _PlantListCardState extends State<PlantListCard> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: colorScheme.onSurface,
+                      color: colorScheme.onSurfaceVariant,
                       decoration: TextDecoration.none,
                     ),
                     maxLines: 1,
@@ -317,7 +357,7 @@ class _PlantListCardState extends State<PlantListCard> {
                           Icon(
                             Icons.local_offer,
                             size: 14,
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
@@ -325,7 +365,7 @@ class _PlantListCardState extends State<PlantListCard> {
                               widget.plant.categories.join(', '),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: colorScheme.onSurface.withOpacity(0.6),
+                                color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                                 decoration: TextDecoration.none,
                               ),
                               maxLines: 1,
@@ -342,14 +382,14 @@ class _PlantListCardState extends State<PlantListCard> {
                         Icon(
                           Icons.water_drop,
                           size: 14,
-                          color: colorScheme.onSurface.withOpacity(0.6),
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '${widget.plant.wateringFrequency}일마다',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                             decoration: TextDecoration.none,
                           ),
                         ),
@@ -358,7 +398,7 @@ class _PlantListCardState extends State<PlantListCard> {
                           '·',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colorScheme.onSurface.withOpacity(0.3),
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.3),
                             decoration: TextDecoration.none,
                           ),
                         ),
@@ -384,7 +424,7 @@ class _PlantListCardState extends State<PlantListCard> {
                           Icon(
                             Icons.calendar_today,
                             size: 14,
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                            color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -406,7 +446,7 @@ class _PlantListCardState extends State<PlantListCard> {
                         Icon(
                           Icons.description,
                           size: 14,
-                          color: colorScheme.onSurface.withOpacity(0.6),
+                          color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -414,7 +454,7 @@ class _PlantListCardState extends State<PlantListCard> {
                             widget.plant.notes,
                             style: TextStyle(
                               fontSize: 12,
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: colorScheme.onSurfaceVariant.withOpacity(0.9),
                               decoration: TextDecoration.none,
                             ),
                             maxLines: 2,

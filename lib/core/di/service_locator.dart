@@ -1,6 +1,6 @@
 import 'package:plantapp_p/Data/datasources/auth_remote_datasource.dart';
+import 'package:plantapp_p/Data/datasources/city_datasource.dart';
 import 'package:plantapp_p/Data/datasources/gemini_datasource.dart';
-import 'package:plantapp_p/Data/datasources/location_datasource.dart';
 import 'package:plantapp_p/Data/datasources/plant_remote_datasource.dart';
 import 'package:plantapp_p/Data/datasources/weather_remote_datasource.dart';
 import 'package:plantapp_p/Data/repositories_impl/auth_repository_impl.dart';
@@ -15,6 +15,7 @@ import 'package:plantapp_p/Domain/repositories/chat_repository.dart';
 import 'package:plantapp_p/Domain/repositories/weather_repository.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';
+import 'package:plantapp_p/domain/usecases/pesticide_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_plants_usecase.dart';
 import 'package:plantapp_p/domain/usecases/save_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/sign_in_with_google_usecase.dart';
@@ -39,12 +40,15 @@ class ServiceLocator {
   late final WeatherRepository weatherRepository;
   late final GeminiService geminiService;
   late final WeatherRecommendationService weatherRecommendationService;
+  late final CityDataSource cityDataSource;
+  late final WeatherRemoteDataSource weatherDataSource;
 
   late final GetPlantsUseCase getPlantsUseCase;
   late final SavePlantUseCase savePlantUseCase;
   late final DeletePlantUseCase deletePlantUseCase;
   late final WaterPlantUseCase waterPlantUseCase;
   late final FertilizePlantUseCase fertilizePlantUseCase;
+  late final PesticidePlantUseCase pesticidePlantUseCase;
   late final SignInWithGoogleUseCase signInWithGoogleUseCase;
   late final SignOutUseCase signOutUseCase;
   late final SendMessageUseCase sendMessageUseCase;
@@ -57,8 +61,8 @@ class ServiceLocator {
     // 데이터 소스 생성
     final plantDs = PlantRemoteDataSource();
     final authDs = AuthRemoteDataSource();
-    final locationDs = LocationDataSource();
-    final weatherDs = WeatherRemoteDataSource();
+    cityDataSource = CityDataSource();
+    weatherDataSource = WeatherRemoteDataSource();
     geminiService = GeminiService()..init(); // Firebase 초기화 이후 실행
     weatherRecommendationService = WeatherRecommendationService()..init();
     final geminiDs = GeminiDataSource(geminiService);
@@ -67,7 +71,7 @@ class ServiceLocator {
     plantRepository = PlantRepositoryImpl(plantDs);
     authRepository = AuthRepositoryImpl(authDs);
     chatRepository = ChatRepositoryImpl(geminiDs);
-    weatherRepository = WeatherRepositoryImpl(weatherDs);
+    weatherRepository = WeatherRepositoryImpl(weatherDataSource);
 
     // UseCases에 주입
     getPlantsUseCase = GetPlantsUseCase(plantRepository);
@@ -75,11 +79,12 @@ class ServiceLocator {
     deletePlantUseCase = DeletePlantUseCase(plantRepository);
     waterPlantUseCase = WaterPlantUseCase(plantRepository);
     fertilizePlantUseCase = FertilizePlantUseCase(plantRepository);
+    pesticidePlantUseCase = PesticidePlantUseCase(plantRepository);
     signInWithGoogleUseCase = SignInWithGoogleUseCase(authRepository);
     signOutUseCase = SignOutUseCase(authRepository);
     sendMessageUseCase = SendMessageUseCase(chatRepository);
     getWeatherRecommendationUseCase = GetWeatherRecommendationUseCase(
-      location: locationDs,
+      city: cityDataSource,
       weather: weatherRepository,
       recommendation: weatherRecommendationService,
     );
@@ -94,10 +99,12 @@ class ServiceLocator {
         deletePlant: deletePlantUseCase,
         waterPlant: waterPlantUseCase,
         fertilizePlant: fertilizePlantUseCase,
+        pesticidePlant: pesticidePlantUseCase,
         signOut: signOutUseCase,
         geminiService: geminiService,
         getWeatherRecommendation: getWeatherRecommendationUseCase,
-        weatherRecommendationService: weatherRecommendationService,
+        cityDataSource: cityDataSource,
+        weatherDataSource: weatherDataSource,
       );
 
   LoginViewModel createLoginViewModel() => LoginViewModel(

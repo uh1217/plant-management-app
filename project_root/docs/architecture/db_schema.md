@@ -7,7 +7,7 @@
        ┗ - plants (서브 컬렉션: 사용자의 식물 목록)
           ┗ - {plant_id} (문서: 개별 식물 정보,Firestore 자동 생성 난수 ID)
              ┣ - 필드: name, imageUrl, categories, notes...
-             ┣ - 필드 (배열): watering_history, fertilizer_history...
+             ┣ - 필드 (배열): watering_history, fertilizer_history, pesticide_history...
              ┗ - gallery (서브-서브 컬렉션: 성장 앨범 사진)
                 ┗ - {photo_id} (문서: 개별 사진 정보)
                    ┗ - 필드: photo_url, taken_at, memo...
@@ -31,8 +31,9 @@ interface PlantDocument {
   categories: string[];         // ['관엽', '괴근']
   watering_frequency: number;   // 권장 간격 (일 단위)
   last_watered: string;         // ISO 8601 DateTime
-  watering_history: string[];   // 역대 물 주기 기록 (ISO 8601 배열)
-  fertilizer_history: string[]; // 역대 비료 주기 기록 (ISO 8601 배열)
+  watering_history: string[];   // 역대 물 주기 기록 (ISO 8601 배열, 최신 3개 유지)
+  fertilizer_history: string[]; // 역대 비료 주기 기록 (ISO 8601 배열, 최신 3개 유지)
+  pesticide_history: string[];  // 역대 농약 주기 기록 (ISO 8601 배열, 최신 3개 유지)
   notes?: string;               // 옵션: 흙 배합 등 커스텀 메모
 }
 ` ` `

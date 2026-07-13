@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/views/input_screen.dart';
@@ -35,15 +36,18 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ShowcaseView _showcaseView;
   int _guideStep = 0; // 0=비활성, 1~7=활성 단계
 
-  // Phase 1: 홈 화면 사이드바 조작
-  final GlobalKey _menuBtnKey = GlobalKey(debugLabel: 'guide_menuBtn');
-  final GlobalKey _sidebarInputMenuKey =
-      GlobalKey(debugLabel: 'guide_sidebarInput');
-  final GlobalKey _sidebarBodyKey =
-      GlobalKey(debugLabel: 'guide_sidebarBody');
+  // Phase 2: 사이드바 구역별 강조
+  final GlobalKey _sidebarNavKey =
+      GlobalKey(debugLabel: 'guide_sidebarNav');
+  final GlobalKey _sidebarFuncKey =
+      GlobalKey(debugLabel: 'guide_sidebarFunc');
+  final GlobalKey _sidebarCategoryKey =
+      GlobalKey(debugLabel: 'guide_sidebarCategory');
 
   // Phase 3: 리스트 관리
   final GlobalKey _plantCardKey = GlobalKey(debugLabel: 'guide_plantCard');
+  final GlobalKey _cardEditDeleteKey =
+      GlobalKey(debugLabel: 'guide_cardEditDelete');
   final GlobalKey _actionBtnsKey = GlobalKey(debugLabel: 'guide_actionBtns');
 
   HomeViewModel get _vm => widget.viewModel;
@@ -76,11 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── 사용자 가이드 로직 ────────────────────────────────────────────────────
 
-  /// 사이드바 "사용 가이드" 탭 시 호출
+  /// 사이드바 "사용 가이드" 탭 시 호출 — 입력 화면(Phase 1)부터 시작
   void startUserGuide() {
     if (!mounted) return;
     _guideStep = 1;
-    _showcaseView.startShowCase([_menuBtnKey]);
+    _openGuideInputScreen();
   }
 
   /// showcaseView.onComplete — 각 step 완료 시 호출
@@ -92,30 +96,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _advanceGuide() {
     if (!mounted) return;
+
     if (_guideStep == 2) {
-      // Step 1 완료: 사이드바 자동 오픈 → 입력 메뉴 강조
+      // Phase 1 완료: 사이드바 오픈 → 내비게이션 섹션 강조 (2-1)
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         setState(() => _isSidebarOpen = true);
         await Future.delayed(const Duration(milliseconds: 420));
-        if (mounted) _showcaseView.startShowCase([_sidebarInputMenuKey]);
+        if (mounted) _showcaseView.startShowCase([_sidebarNavKey]);
       });
     } else if (_guideStep == 3) {
-      // Step 2 완료: 사이드바 기능+카테고리 영역 강조
+      // 2-1 완료: 기능 메뉴 섹션 강조 (2-2)
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showcaseView.startShowCase([_sidebarBodyKey]);
+        if (mounted) _showcaseView.startShowCase([_sidebarFuncKey]);
       });
     } else if (_guideStep == 4) {
-      // Step 3 완료: 사이드바 닫고 입력 화면으로 이동
+      // 2-2 완료: 카테고리 섹션 강조 (2-3) — 카테고리 없으면 건너뜀
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final hasCategories =
+            _vm.plants.any((p) => p.categories.isNotEmpty);
+        if (hasCategories) {
+          _showcaseView.startShowCase([_sidebarCategoryKey]);
+        } else {
+          _guideStep = 5;
+          _advanceGuide();
+        }
+      });
+    } else if (_guideStep == 5) {
+      // 2-3 완료(또는 건너뜀): 사이드바 닫고 리스트 단계로 (3-1)
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         setState(() => _isSidebarOpen = false);
         await Future.delayed(const Duration(milliseconds: 350));
-        if (mounted) _openGuideInputScreen();
-      });
-    } else if (_guideStep == 5) {
-      // Phase 2 복귀 후: 식물 카드 강조 (또는 없으면 안내 후 종료)
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         if (_filteredPlants.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -128,22 +141,26 @@ class _HomeScreenState extends State<HomeScreen> {
           _guideStep = 0;
           return;
         }
-        await Future.delayed(const Duration(milliseconds: 400));
+        await Future.delayed(const Duration(milliseconds: 200));
         if (mounted) _showcaseView.startShowCase([_plantCardKey]);
       });
     } else if (_guideStep == 6) {
-      // Step 5 완료: 물주기·비료 버튼 강조
+      // 3-1 완료: 체크·물주기·비료 버튼 강조 (3-2)
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showcaseView.startShowCase([_actionBtnsKey]);
       });
     } else if (_guideStep == 7) {
+      // 3-2 완료: 수정·삭제 강조 (3-3)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showcaseView.startShowCase([_cardEditDeleteKey]);
+      });
+    } else if (_guideStep == 8) {
       // 가이드 완료
       _guideStep = 0;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('가이드 완료! 사이드바에서 언제든 다시 볼 수 있어요 🎉'),
+            content: Text('가이드 완료! 사이드바에서 언제든 다시 볼 수 있어요 🎉'),
             duration: Duration(seconds: 3),
           ),
         );
@@ -175,8 +192,57 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (!mounted) return;
     await _vm.loadPlants();
-    _guideStep = 5;
+    _guideStep = 2;
     _advanceGuide();
+  }
+
+  // ── 가이드 말풍선 스타일 헬퍼 ────────────────────────────────────────────
+  Widget _buildGuideShowcase({
+    required GlobalKey showcaseKey,
+    required String title,
+    required String description,
+    required Widget child,
+    String buttonName = '다음',
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor    = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final descColor  = isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+    final overlayClr = isDark ? Colors.black : const Color(0xFF0F172A);
+    final overlayOpc = isDark ? 0.75 : 0.65;
+
+    return Showcase(
+      key: showcaseKey,
+      title: title,
+      description: description,
+      tooltipBackgroundColor: bgColor,
+      textColor: titleColor,
+      titleTextStyle: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: titleColor,
+        letterSpacing: -0.3,
+        height: 1.3,
+      ),
+      descTextStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        color: descColor,
+        height: 1.65,
+        letterSpacing: 0.1,
+      ),
+      tooltipBorderRadius: BorderRadius.circular(14),
+      tooltipPadding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      overlayColor: overlayClr,
+      overlayOpacity: overlayOpc,
+      tooltipActions: [
+        TooltipActionButton(
+          type: TooltipDefaultActionType.next,
+          name: buttonName,
+        ),
+      ],
+      child: child,
+    );
   }
 
   Future<void> _initializeApp() async {
@@ -221,6 +287,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleFertilizeSelectedPlants() async {
     final today = DateTime.now().toIso8601String().split('T')[0];
     await _vm.fertilizePlants(_selectedPlantIds, today);
+    if (!mounted) return;
+    setState(() => _selectedPlantIds.clear());
+  }
+
+  Future<void> _handlePesticideSelectedPlants() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    await _vm.pesticidePlants(_selectedPlantIds, today);
     if (!mounted) return;
     setState(() => _selectedPlantIds.clear());
   }
@@ -395,7 +468,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -404,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 430),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
+            color: theme.scaffoldBackgroundColor,    // 전체 배경 (헤더·카드 제외)
             boxShadow: [
               BoxShadow(
                 color: Colors.black
@@ -579,8 +651,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         () { if (mounted) startUserGuide(); },
                       );
                     },
-                    guideInputMenuKey: _sidebarInputMenuKey,
-                    guideSidebarBodyKey: _sidebarBodyKey,
+                    guideNavSectionKey: _sidebarNavKey,
+                    guideFuncSectionKey: _sidebarFuncKey,
+                    guideCategoryListKey: _sidebarCategoryKey,
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
                       await _vm.signOut();
@@ -708,20 +781,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (index == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Showcase(
-                      key: _plantCardKey,
-                      title: '식물 카드',
+                    child: _buildGuideShowcase(
+                      showcaseKey: _plantCardKey,
+                      title: '리스트 화면',
                       description:
-                          '탭: 선택  ·  더블탭: 편집\n길게 누른 후 드래그: 삭제',
-                      tooltipBackgroundColor: Colors.white,
-                      textColor: Colors.black87,
-                      tooltipActions: const [
-                        TooltipActionButton(
-                          type: TooltipDefaultActionType.next,
-                          name: '다음',
-                        ),
-                      ],
-                      child: card,
+                          '등록된 각 식물의 이름·카테고리·물주기 상태가\n카드 형태로 나열됩니다',
+                      child: _buildGuideShowcase(
+                        showcaseKey: _cardEditDeleteKey,
+                        title: '수정 / 삭제',
+                        description: '더블탭: 식물 정보 수정\n길게 눌러 드래그: 삭제',
+                        buttonName: '완료',
+                        child: card,
+                      ),
                     ),
                   );
                 }
@@ -759,25 +830,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Showcase(
-                  key: _menuBtnKey,
-                  title: '사이드바',
-                  description:
-                      '탭하면 사이드바가 열립니다.\n다양한 기능에 접근해보세요!',
-                  tooltipBackgroundColor: Colors.white,
-                  textColor: Colors.black87,
-                  tooltipActions: const [
-                    TooltipActionButton(
-                      type: TooltipDefaultActionType.next,
-                      name: '다음',
-                    ),
-                  ],
-                  child: IconButton(
-                    onPressed: () =>
-                        setState(() => _isSidebarOpen = true),
-                    icon: Icon(Icons.menu, color: colorScheme.onSurface),
-                    padding: const EdgeInsets.all(8),
-                  ),
+                IconButton(
+                  onPressed: () =>
+                      setState(() => _isSidebarOpen = true),
+                  icon: Icon(Icons.menu, color: colorScheme.onSurface),
+                  padding: const EdgeInsets.all(8),
                 ),
                 Text(
                   _activeSearchQuery.isNotEmpty
@@ -791,24 +848,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Showcase(
-                  key: _actionBtnsKey,
-                  title: '물주기 / 비료',
+                _buildGuideShowcase(
+                  showcaseKey: _actionBtnsKey,
+                  title: '카드 조작',
                   description:
-                      '카드를 탭해 식물을 선택한 후\n이 버튼으로 물주기·비료 기록을 남기세요',
-                  tooltipBackgroundColor: Colors.white,
-                  textColor: Colors.black87,
-                  tooltipActions: const [
-                    TooltipActionButton(
-                      type: TooltipDefaultActionType.next,
-                      name: '완료',
-                    ),
-                  ],
+                      '카드 탭: 체크 선택  ·  선택 후 물방울: 물주기 기록\n선택 후 새싹: 비료 기록  ·  선택 후 벌레: 농약 기록',
+                  buttonName: '다음',
                   child: Row(
                     children: [
                       _buildActionButton(
+                        icon: Icons.bug_report,
+                        color: AppColors.yellow200,
+                        onPressed: _selectedPlantIds.isEmpty
+                            ? null
+                            : _handlePesticideSelectedPlants,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildActionButton(
                         icon: Icons.eco,
-                        color: colorScheme.secondary,
+                        color: AppColors.primaryGreen,
                         onPressed: _selectedPlantIds.isEmpty
                             ? null
                             : _handleFertilizeSelectedPlants,
@@ -816,7 +874,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 8),
                       _buildActionButton(
                         icon: Icons.water_drop,
-                        color: colorScheme.primary,
+                        color: AppColors.primaryBlue,
                         onPressed: _selectedPlantIds.isEmpty
                             ? null
                             : _handleWaterSelectedPlants,
@@ -963,6 +1021,12 @@ class _EditPlantFormContentState
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+
+    // 마지막 물 준 날짜보다 이후인 물주기 기록 제거
+    final filteredHistory = widget.plant.wateringHistory
+        .where((h) => h.split('T')[0].compareTo(_lastWatered) <= 0)
+        .toList();
+
     final updated = Plant(
       id: widget.plant.id,
       imageUrl: _imageUrl,
@@ -971,8 +1035,9 @@ class _EditPlantFormContentState
       wateringFrequency:
           int.tryParse(_freqCtrl.text.trim()) ?? 1,
       lastWatered: _lastWatered,
-      wateringHistory: widget.plant.wateringHistory,
+      wateringHistory: filteredHistory,
       fertilizerHistory: widget.plant.fertilizerHistory,
+      pesticideHistory: widget.plant.pesticideHistory,
       notes: _notesCtrl.text.trim(),
     );
     widget.onSave(updated);
@@ -996,7 +1061,7 @@ class _EditPlantFormContentState
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
+                  color: colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: colorScheme.outline),
                 ),
@@ -1042,9 +1107,11 @@ class _EditPlantFormContentState
           // 이름
           TextFormField(
             controller: _nameCtrl,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: '식물 이름 *',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: colorScheme.surfaceContainer,
             ),
             validator: (v) =>
                 (v == null || v.trim().isEmpty)
@@ -1061,10 +1128,12 @@ class _EditPlantFormContentState
           TextFormField(
             controller: _freqCtrl,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: '물 주기 (일) *',
               hintText: '예: 7',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
+              filled: true,
+              fillColor: colorScheme.surfaceContainer,
             ),
             validator: (v) {
               final n = int.tryParse(v?.trim() ?? '');
@@ -1082,6 +1151,8 @@ class _EditPlantFormContentState
                 labelText: '마지막으로 물 준 날짜',
                 border: const OutlineInputBorder(),
                 floatingLabelBehavior: FloatingLabelBehavior.always,
+                filled: true,
+                fillColor: colorScheme.surfaceContainer,
                 prefixIcon: Icon(
                   Icons.calendar_today,
                   size: 20,
@@ -1103,12 +1174,14 @@ class _EditPlantFormContentState
           TextFormField(
             controller: _notesCtrl,
             maxLines: 3,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: '메모',
               hintText: '식물에 대한 메모를 입력하세요',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
               alignLabelWithHint: true,
               floatingLabelBehavior: FloatingLabelBehavior.always,
+              filled: true,
+              fillColor: colorScheme.surfaceContainer,
             ),
           ),
           const SizedBox(height: 24),
@@ -1144,6 +1217,8 @@ class _EditPlantFormContentState
         labelText: '카테고리',
         border: const OutlineInputBorder(),
         floatingLabelBehavior: FloatingLabelBehavior.always,
+        filled: true,
+        fillColor: colorScheme.surfaceContainer,
         contentPadding: const EdgeInsets.fromLTRB(12, 8, 4, 12),
         suffixIcon: _categories.length < 5
             ? IconButton(

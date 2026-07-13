@@ -10,6 +10,7 @@ abstract class PlantRepository {
   Future<Result<void>> deletePlant(String plantId);
   Future<Result<void>> waterPlant(String plantId, String isoDate);
   Future<Result<void>> fertilizePlant(String plantId, String isoDate);
+  Future<Result<void>> pesticidePlant(String plantId, String isoDate);
   Future<Result<List<GalleryPhoto>>> getGalleryPhotos(String plantId);
   Future<Result<void>> addGalleryPhoto(String plantId, GalleryPhoto photo);
 }

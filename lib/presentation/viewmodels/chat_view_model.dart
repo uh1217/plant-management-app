@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/Domain/entities/chat_message.dart';
 import 'package:plantapp_p/Domain/usecases/send_message_usecase.dart';
 
@@ -29,7 +28,7 @@ class ChatViewModel extends ChangeNotifier {
 
   bool get isLoading => status == ChatUiStatus.loading;
 
-  /// 메시지 전송
+  /// 메시지 전송 (스트리밍 방식)
   /// [text] 사용자 입력 텍스트
   /// [imageFile] image_picker로 선택한 이미지 (nullable)
   Future<void> sendMessage(String text, {XFile? imageFile}) async {
@@ -57,22 +56,44 @@ class ChatViewModel extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
 
-    final result = await _sendMessageUseCase(
-      SendMessageParams(
-        uid: uid,
-        text: text,
-        imageBytes: imageBytes,
-        imageMimeType: mimeType,
-      ),
-    );
+    // 빈 AI 메시지 플레이스홀더를 먼저 추가 — 청크가 오면 이 자리를 채운다
+    final aiMsgId = '${DateTime.now().millisecondsSinceEpoch}_ai';
+    messages.add(ChatMessage(
+      id: aiMsgId,
+      text: '',
+      isUser: false,
+      createdAt: DateTime.now(),
+    ));
+    notifyListeners();
 
-    switch (result) {
-      case Success(:final data):
-        messages.add(data);
-        status = ChatUiStatus.idle;
-      case Failure(:final message):
-        status = ChatUiStatus.error;
-        errorMessage = message;
+    final buffer = StringBuffer();
+
+    try {
+      final stream = _sendMessageUseCase.callStream(
+        SendMessageParams(
+          uid: uid,
+          text: text,
+          imageBytes: imageBytes,
+          imageMimeType: mimeType,
+        ),
+      );
+
+      // 청크가 도착할 때마다 플레이스홀더 메시지의 text를 누적 갱신
+      await for (final chunk in stream) {
+        buffer.write(chunk);
+        final idx = messages.indexWhere((m) => m.id == aiMsgId);
+        if (idx != -1) {
+          messages[idx] = messages[idx].copyWith(text: buffer.toString());
+        }
+        notifyListeners();
+      }
+
+      status = ChatUiStatus.idle;
+    } catch (e) {
+      // 스트리밍 중 오류 발생 시 플레이스홀더 제거 후 에러 상태로 전환
+      messages.removeWhere((m) => m.id == aiMsgId);
+      status = ChatUiStatus.error;
+      errorMessage = 'AI 응답을 받아오는 중 오류가 발생했습니다: $e';
     }
 
     notifyListeners();

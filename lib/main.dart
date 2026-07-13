@@ -51,17 +51,14 @@ class PlantManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 💡 방송국(themeNotifier)의 값이 바뀔 때마다 아래 builder가 다시 실행
-    return ValueListenableBuilder<ThemeMode>(
+    return ValueListenableBuilder<AppThemeType>(
       valueListenable: AppTheme.themeNotifier,
-      builder: (context, ThemeMode currentMode, child) {
+      builder: (context, AppThemeType currentTheme, child) {
         return MaterialApp(
           title: 'Plant App',
-          theme: AppTheme.lightTheme,      // 라이트 테마
-          darkTheme: AppTheme.darkTheme,   // 다크 테마
-          themeMode: currentMode,          //방송국에서 알려준 현재 모드 적용
-          home: const _AuthGate(), // HomeScreen() 대신 _AuthGate로 교체
-          //home: const LoginScreen(),
+          theme: AppTheme.getTheme(currentTheme),
+          themeMode: ThemeMode.light,
+          home: const _AuthGate(),
         );
       },
     );

@@ -8,6 +8,7 @@ import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
+import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
@@ -93,7 +94,6 @@ class _InputScreenState extends State<InputScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -102,7 +102,7 @@ class _InputScreenState extends State<InputScreen> {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 430),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
+            color: theme.scaffoldBackgroundColor,
             boxShadow: [
               BoxShadow(
                 color: Colors.black
@@ -413,6 +413,7 @@ class _InputFormContentState extends State<_InputFormContent> {
       lastWatered: _lastWatered.toIso8601String().split('T')[0],
       wateringHistory: [_lastWatered.toIso8601String().split('T')[0]],
       fertilizerHistory: [],
+      pesticideHistory: [],
       notes: _notesController.text.trim(),
     );
     await widget.onSave(plant);
@@ -462,7 +463,7 @@ class _InputFormContentState extends State<_InputFormContent> {
               width: 2,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: colorScheme.onSurface.withOpacity(0.05),
+            color: colorScheme.tertiary,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -497,9 +498,11 @@ class _InputFormContentState extends State<_InputFormContent> {
       children: [
         Positioned.fill(
           child: Image.asset(
-            isDark
-                ? 'assets/images/dark_jungle_1.jpg'
-                : 'assets/images/bright_jungle_1.jpg',
+            AppTheme.themeNotifier.value == AppThemeType.starbucks
+                ? 'assets/images/starbucks.jpg'
+                : isDark
+                    ? 'assets/images/dark_jungle_1.jpg'
+                    : 'assets/images/bright_jungle_1.jpg',
             fit: BoxFit.cover,
             opacity: const AlwaysStoppedAnimation(0.5),
           ),
@@ -554,7 +557,7 @@ class _InputFormContentState extends State<_InputFormContent> {
                   '사진을 추가하세요',
                   style: TextStyle(
                     fontSize: 14,
-                    color: colorScheme.onSurface,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -598,9 +601,9 @@ class _InputFormContentState extends State<_InputFormContent> {
 
     if (_imageUrl.isEmpty) {
       return Container(
-        color: colorScheme.surface,
+        color: colorScheme.tertiary,
         child: Icon(Icons.image,
-            size: 48, color: colorScheme.onSurface.withOpacity(0.3)),
+            size: 48, color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
       );
     }
     if (_imageUrl.startsWith('http')) {
@@ -624,7 +627,7 @@ class _InputFormContentState extends State<_InputFormContent> {
     final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Icon(Icons.broken_image,
-          size: 48, color: colorScheme.onSurface.withOpacity(0.3)),
+          size: 48, color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
     );
   }
 
@@ -640,7 +643,7 @@ class _InputFormContentState extends State<_InputFormContent> {
         prefixIcon: Icon(
           Icons.local_florist,
           size: 20,
-          color: colorScheme.onSurface.withOpacity(0.5),
+          color: colorScheme.onSurfaceVariant.withOpacity(0.5),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -655,7 +658,7 @@ class _InputFormContentState extends State<_InputFormContent> {
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         filled: true,
-        fillColor: colorScheme.surface,
+        fillColor: colorScheme.surfaceContainer,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
@@ -703,7 +706,7 @@ class _InputFormContentState extends State<_InputFormContent> {
                   prefixIcon: Icon(
                     Icons.local_offer,
                     size: 20,
-                    color: colorScheme.onSurface.withOpacity(0.5),
+                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -719,7 +722,7 @@ class _InputFormContentState extends State<_InputFormContent> {
                         BorderSide(color: colorScheme.primary, width: 2),
                   ),
                   filled: true,
-                  fillColor: colorScheme.surface,
+                  fillColor: colorScheme.surfaceContainer,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
                 ),
@@ -768,8 +771,8 @@ class _InputFormContentState extends State<_InputFormContent> {
           icon,
           size: 20,
           color: onPressed == null
-              ? colorScheme.onSurface.withOpacity(0.3)
-              : colorScheme.onSurface.withOpacity(0.7),
+              ? colorScheme.onSurfaceVariant.withOpacity(0.3)
+              : colorScheme.onSurfaceVariant.withOpacity(0.7),
         ),
       ),
     );
@@ -789,7 +792,7 @@ class _InputFormContentState extends State<_InputFormContent> {
         prefixIcon: Icon(
           Icons.water_drop,
           size: 20,
-          color: colorScheme.onSurface.withOpacity(0.5),
+          color: colorScheme.onSurfaceVariant.withOpacity(0.5),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -804,7 +807,7 @@ class _InputFormContentState extends State<_InputFormContent> {
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         filled: true,
-        fillColor: colorScheme.surface,
+        fillColor: colorScheme.surfaceContainer,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
@@ -834,7 +837,7 @@ class _InputFormContentState extends State<_InputFormContent> {
           prefixIcon: Icon(
             Icons.calendar_today,
             size: 20,
-            color: colorScheme.onSurface.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
@@ -849,13 +852,13 @@ class _InputFormContentState extends State<_InputFormContent> {
             borderSide: BorderSide(color: colorScheme.primary, width: 2),
           ),
           filled: true,
-          fillColor: colorScheme.surface,
+          fillColor: colorScheme.surfaceContainer,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         child: Text(
           '${_lastWatered.year}년 ${_lastWatered.month}월 ${_lastWatered.day}일',
-          style: TextStyle(fontSize: 16, color: colorScheme.onSurface),
+          style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
         ),
       ),
     );
@@ -869,7 +872,7 @@ class _InputFormContentState extends State<_InputFormContent> {
       controller: _notesController,
       focusNode: _notesFocusNode,
       maxLines: 3,
-      style: TextStyle(color: colorScheme.onSurface),
+      style: TextStyle(color: colorScheme.onSurfaceVariant),
       decoration: InputDecoration(
         hintText: '특이사항',
         prefixIcon: Padding(
@@ -877,7 +880,7 @@ class _InputFormContentState extends State<_InputFormContent> {
           child: Icon(
             Icons.description,
             size: 20,
-            color: colorScheme.onSurface.withOpacity(0.5),
+            color: colorScheme.onSurfaceVariant.withOpacity(0.5),
           ),
         ),
         border: OutlineInputBorder(
@@ -893,7 +896,7 @@ class _InputFormContentState extends State<_InputFormContent> {
           borderSide: BorderSide(color: colorScheme.primary, width: 2),
         ),
         filled: true,
-        fillColor: colorScheme.surface,
+        fillColor: colorScheme.surfaceContainer,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
@@ -916,7 +919,7 @@ class _InputFormContentState extends State<_InputFormContent> {
             onPressed: _isUploading ? null : _handleSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
+              foregroundColor: colorScheme.onSurfaceVariant,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),

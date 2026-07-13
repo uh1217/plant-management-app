@@ -65,6 +65,16 @@ class PlantRepositoryImpl implements PlantRepository {
   }
 
   @override
+  Future<Result<void>> pesticidePlant(String plantId, String isoDate) async {
+    try {
+      await _remote.pesticidePlant(plantId, isoDate);
+      return const Success(null);
+    } catch (e) {
+      return Failure(error: e, message: '농약 주기 기록에 실패했습니다.');
+    }
+  }
+
+  @override
   Future<Result<List<GalleryPhoto>>> getGalleryPhotos(String plantId) async {
     try {
       final dtos = await _remote.getGalleryPhotos(plantId);

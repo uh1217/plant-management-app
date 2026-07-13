@@ -21,6 +21,7 @@ class AppColors {
   static const gray500 = Color(0xFF6B7280);
   static const gray600 = Color(0xFF4B5563);
   static const gray700 = Color(0xFF374151);
+  static const gray800 = Color(0xFF1F2937);
   static const gray900 = Color(0xFF111827);
   
   // Background
@@ -42,7 +43,14 @@ class AppColors {
   static const red50 = Color(0xFFFEF2F2);
   static const red600 = Color(0xFFDC2626);
   
-  // Orange Variants (주의)
+  // Yellow Variants (주의)
   static const yellow50 = Color(0xFFFFF7ED);
+  static const yellow200 = Color(0xFFF9D48A); // 노란+살색 혼합 (농약 표시용)
   static const yellow600 = Color.fromARGB(255, 206, 209, 9);
+
+  // Starbucks Colors
+  static const Color starbucksGreen = Color(0xFF00704A); // 메인 사이렌 그린
+  static const Color starbucksGold = Color(0xFFC28E0E);  // 리워드 별 및 포인트 컬러
+  static const Color starbucksBrown = Color(0xFF27251F); // 짙은 커피 브라운 (블랙 대용)
+
 }
