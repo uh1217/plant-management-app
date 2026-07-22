@@ -21,9 +21,6 @@ class AuthRemoteDataSource {
     await _googleSignIn.initialize(); // 구글 SDK 초기화
     //유저가 구글 계정 선택 창을 띄우고 취소하면 에러를 던져 흐름 끊음
     final googleUser = await _googleSignIn.authenticate(); // 계정 선택 팝업 표시
-    if (googleUser == null) {
-      throw StateError('Google sign-in cancelled');
-    }
 
     // 구글이 허용하면 파이어베이스가 알 수 있는 입장권으로 바꿈
     final googleAuth = await googleUser.authentication;

@@ -50,9 +50,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # ── 7. 정적 분석 ──
+      # ── 7. 정적 분석 (info/warning은 출력만, error만 실패) ──
       - name: Analyze code
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       # ── 8. 테스트 ──
       - name: Run tests

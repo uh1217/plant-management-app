@@ -1,5 +1,4 @@
 //앱 실행, 전체 테마 설정, home_screen으로 라우팅
-import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'presentation/views/home_screen.dart';
 import 'presentation/app_theme.dart';
@@ -10,7 +9,6 @@ import 'package:plantapp_p/core/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart'; 
 // 파이어베이스 설정 파일 (DefaultFirebaseOptions를 인식하게 해줌)
 import 'firebase_options.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
