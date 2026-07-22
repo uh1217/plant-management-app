@@ -1,0 +1,80 @@
+name: Android Release to Internal Testing
+
+on:
+  workflow_dispatch:  # Actions 탭에서 수동 실행
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. 소스 코드 가져오기 ──
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Java 17 설치 ──
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ── 3. Flutter 설치 ──
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.4'
+          cache: true
+
+      # ── 4. Keystore + key.properties 복원 ──
+      - name: Restore signing keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=../upload-keystore.jks
+          EOF
+
+      # ── 5. Firebase 설정 파일 복원 ──
+      - name: Restore Firebase config files
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          echo "$FIREBASE_OPTIONS_DART" > lib/firebase_options.dart
+
+      # ── 6. 의존성 설치 ──
+      - name: Install dependencies
+        run: flutter pub get
+
+      # ── 7. 정적 분석 ──
+      - name: Analyze code
+        run: flutter analyze
+
+      # ── 8. 테스트 ──
+      - name: Run tests
+        run: flutter test
+
+      # ── 9. AAB 빌드 ──
+      - name: Build release AAB
+        run: flutter build appbundle --release
+
+      # ── 10. 빌드 결과물 저장 (디버깅용) ──
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      # ── 11. Play Console Internal testing 업로드 ──
+      - name: Deploy to Play Internal Testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_JSON }}
+          packageName: com.yoohyun.plant_management_app
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

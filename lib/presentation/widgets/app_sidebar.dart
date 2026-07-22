@@ -307,11 +307,26 @@ void _showPrivacyPolicy(BuildContext context) {
       title: const Text('개인정보 처리 방침'),
       content: const SingleChildScrollView(
         child: Text(
-          '1. 본 앱은 사용자가 입력한 식물 정보를 Firebase에 안전하게 보관합니다.\n\n'
-          '2. 사용자의 이메일 등 개인 식별 정보는 문의하기 기능을 이용할 때 외에는 수집하지 않습니다.\n\n'
-          '3. 권한 수집 안내\n'
-          '- 사용자는 식물 사진 등록을 위해 갤러리 접근 권한을 허용할 수 있습니다.\n'
-          '- 선택 권한은 거부하더라도 앱의 다른 기능은 이용 가능하지만, 사진 등록 기능은 제한될 수 있습니다.',
+          '1. 수집하는 정보\n'
+          '· Google 로그인: 이메일, 이름, 사용자 ID\n'
+          '· 이용자 입력: 식물 정보, 관리 기록, 사진\n'
+          '· AI 상담: 채팅 내용 및 첨부 사진\n'
+          '· 날씨 추천: 선택한 도시의 위치(좌표)\n\n'
+          '2. 이용 목적\n'
+          '· 계정 인증, 데이터 저장·동기화\n'
+          '· 식물 관리, AI 상담, 날씨 기반 케어 추천\n'
+          '· 물주기 알림(선택)\n\n'
+          '3. 제3자 제공\n'
+          '· Google(Firebase, Gemini AI): 인증·저장·AI 처리\n'
+          '· OpenWeatherMap: 날씨 예보(Cloud Functions 경유)\n\n'
+          '4. 권한(선택)\n'
+          '· 사진(갤러리): 식물 사진 등록·AI 첨부\n'
+          '· 알림·정확한 알람: 물주기 알림\n'
+          '거부 시 해당 기능만 제한됩니다.\n\n'
+          '5. 보관 및 삭제\n'
+          '· 앱 내에서 식물별 데이터 삭제 가능\n'
+          '· 계정·전체 데이터 삭제: yoohyun031217@gmail.com\n\n'
+          '6. 문의: yoohyun031217@gmail.com (개발자: 이유현)',
         ),
       ),
       actions: [
@@ -324,36 +339,91 @@ void _showPrivacyPolicy(BuildContext context) {
   );
 }
 
-void showAppInfo(BuildContext context) {
-  showAboutDialog(
-    context: context,
-    applicationName: '식물 관리 앱 (Plant Management App)',
-    applicationVersion: '1.1.1',
-    applicationIcon: ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.asset(
-        'assets/images/PlantApp_Icon.png',
-        width: 50,
-        height: 50,
-      ),
+Widget _appInfoIcon({double size = 48}) {
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(8),
+    child: Image.asset(
+      'assets/images/PlantApp_Icon.png',
+      width: size,
+      height: size,
     ),
-    applicationLegalese:
-        '© ${DateTime.now().year} 이유현. All rights reserved.',
-    children: [
-      const SizedBox(height: 20),
-      const Text('기본 이미지 및 사진 삽입 배경 이미지 출처',
-          style: TextStyle(fontWeight: FontWeight.bold)),
-      const Text('Designed by Freepik'),
-      const SizedBox(height: 15),
-      const Text('개발자 문의',
-          style: TextStyle(fontWeight: FontWeight.bold)),
-      const Text('• 이메일: yoohyun031217@gmail.com'),
-      const SizedBox(height: 15),
-      TextButton(
-        onPressed: () => _showPrivacyPolicy(context),
-        child: const Text('개인정보 처리 방침 확인하기'),
+  );
+}
+
+void showAppInfo(BuildContext context) {
+  final year = DateTime.now().year;
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Row(
+        children: [
+          _appInfoIcon(),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '식물 관리 앱',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 2),
+                Text('Version 2.4.3', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
       ),
-    ],
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('© $year 이유현. All rights reserved.'),
+            const SizedBox(height: 12),
+            const Text(
+              '문의: yoohyun031217@gmail.com',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '오픈소스 패키지(Flutter, Firebase 등) 라이선스는 '
+              '「라이선스 보기」에서 자동으로 확인할 수 있습니다.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            _showPrivacyPolicy(context);
+          },
+          child: const Text('개인정보 처리방침'),
+        ),
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            showLicensePage(
+              context: context,
+              applicationName: '식물 관리 앱',
+              applicationVersion: '2.4.3',
+              applicationIcon: _appInfoIcon(size: 40),
+            );
+          },
+          child: const Text('라이선스 보기'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('확인'),
+        ),
+      ],
+    ),
   );
 }
 

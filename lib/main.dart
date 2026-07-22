@@ -16,10 +16,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:plantapp_p/core/di/service_locator.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';  
-import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart'; 
+import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
+import 'package:plantapp_p/presentation/utils/app_licenses.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); //비동기 작업 렌더링 준비
+  registerAppLicenses();
   // 알림 채널 초기화 및 알림 권한 요청 (Firebase보다 먼저 실행)
   await NotificationService.instance.init();
   await Firebase.initializeApp( //firebase 와 앱 연결 (Firebase SDK 초기화)
