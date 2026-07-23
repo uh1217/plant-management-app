@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:plantapp_p/core/di/service_locator.dart';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/viewmodels/chat_view_model.dart';
 

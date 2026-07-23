@@ -1,4 +1,4 @@
-import 'package:plantapp_p/Domain/entities/weather_forecast.dart';
+import 'package:plantapp_p/domain/entities/weather_forecast.dart';
 
 /// OpenWeatherMap /data/2.5/forecast 응답의 개별 3시간 슬롯 DTO
 class ForecastSlotDto {

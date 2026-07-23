@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:plantapp_p/Data/datasources/city_datasource.dart';
+import 'package:plantapp_p/data/datasources/city_datasource.dart';
 import 'package:plantapp_p/core/services/notification_service.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';

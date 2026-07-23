@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:plantapp_p/Data/datasources/gemini_datasource.dart';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
-import 'package:plantapp_p/Domain/repositories/chat_repository.dart';
+import 'package:plantapp_p/data/datasources/gemini_datasource.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/repositories/chat_repository.dart';
 
 /// ChatRepository 구현체 - GeminiDataSource에 위임한다.
 class ChatRepositoryImpl implements ChatRepository {

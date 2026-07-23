@@ -1,7 +1,7 @@
 import 'package:plantapp_p/core/result/result.dart';
-import 'package:plantapp_p/Data/datasources/city_datasource.dart';
+import 'package:plantapp_p/data/datasources/city_datasource.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
-import 'package:plantapp_p/Domain/repositories/weather_repository.dart';
+import 'package:plantapp_p/domain/repositories/weather_repository.dart';
 import 'package:plantapp_p/core/services/weather_recommendation_service.dart';
 
 /// 도시 좌표 → 날씨 예보 → Gemini 추천 멘트 생성 파이프라인 UseCase

@@ -2,7 +2,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
-import 'package:plantapp_p/Domain/entities/weather_forecast.dart';
+import 'package:plantapp_p/domain/entities/weather_forecast.dart';
 
 /// 날씨 + 식물 상태 기반 오늘의 식물 케어 추천 멘트 생성 서비스
 ///

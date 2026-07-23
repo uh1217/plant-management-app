@@ -3,8 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/core/services/gemini_service.dart';
-import 'package:plantapp_p/Data/datasources/city_datasource.dart';
-import 'package:plantapp_p/Data/datasources/weather_remote_datasource.dart';
+import 'package:plantapp_p/data/datasources/city_datasource.dart';
+import 'package:plantapp_p/data/datasources/weather_remote_datasource.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';

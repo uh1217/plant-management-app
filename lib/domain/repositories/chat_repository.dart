@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
 
 /// AI 챗봇 저장소 추상 인터페이스
 abstract class ChatRepository {

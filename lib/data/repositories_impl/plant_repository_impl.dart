@@ -2,9 +2,9 @@ import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/domain/entities/gallery_photo.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/domain/repositories/plant_repository.dart';
-import 'package:plantapp_p/Data/datasources/plant_remote_datasource.dart';
-import 'package:plantapp_p/Data/mappers/gallery_photo_mapper.dart';
-import 'package:plantapp_p/Data/mappers/plant_mapper.dart';
+import 'package:plantapp_p/data/datasources/plant_remote_datasource.dart';
+import 'package:plantapp_p/data/mappers/gallery_photo_mapper.dart';
+import 'package:plantapp_p/data/mappers/plant_mapper.dart';
 
 /// PlantRepository Firestore 구현체
 class PlantRepositoryImpl implements PlantRepository {

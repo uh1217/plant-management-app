@@ -1,4 +1,4 @@
-import 'package:plantapp_p/Data/models/gallery_photo_dto.dart';
+import 'package:plantapp_p/data/models/gallery_photo_dto.dart';
 import 'package:plantapp_p/domain/entities/gallery_photo.dart';
 
 /// GalleryPhoto DTO ↔ Domain Entity 변환

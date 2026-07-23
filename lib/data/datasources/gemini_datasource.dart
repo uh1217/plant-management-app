@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:plantapp_p/core/services/gemini_service.dart';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
 
 /// GeminiService를 호출하고 응답을 ChatMessage 엔티티로 변환하는 데이터 소스
 class GeminiDataSource {

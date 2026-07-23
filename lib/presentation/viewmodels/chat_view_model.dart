@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
-import 'package:plantapp_p/Domain/usecases/send_message_usecase.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/usecases/send_message_usecase.dart';
 
 /// 채팅 화면 UI 상태
 enum ChatUiStatus { idle, loading, error }

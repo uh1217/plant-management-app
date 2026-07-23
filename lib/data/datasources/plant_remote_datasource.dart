@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-import 'package:plantapp_p/Data/models/gallery_photo_dto.dart';
-import 'package:plantapp_p/Data/models/plant_dto.dart';
+import 'package:plantapp_p/data/models/gallery_photo_dto.dart';
+import 'package:plantapp_p/data/models/plant_dto.dart';
 
 /// Firestore plants / gallery 원격 데이터 소스 -> firestore에 저장하고 관리
 class PlantRemoteDataSource {

@@ -1,6 +1,6 @@
 import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/domain/repositories/auth_repository.dart';
-import 'package:plantapp_p/Data/datasources/auth_remote_datasource.dart';
+import 'package:plantapp_p/data/datasources/auth_remote_datasource.dart';
 
 /// AuthRepository Firebase 구현체
 // 추상 클래스 구현 - UI나 usecase는 구현체의 본체는 모른체 AuthRepository라는 껍데기(인터페이스)만 보고 소통

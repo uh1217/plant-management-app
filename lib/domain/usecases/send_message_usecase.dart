@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:plantapp_p/core/result/result.dart';
-import 'package:plantapp_p/Domain/entities/chat_message.dart';
-import 'package:plantapp_p/Domain/repositories/chat_repository.dart';
+import 'package:plantapp_p/domain/entities/chat_message.dart';
+import 'package:plantapp_p/domain/repositories/chat_repository.dart';
 
 /// 메시지 전송 유스케이스 파라미터
 class SendMessageParams {

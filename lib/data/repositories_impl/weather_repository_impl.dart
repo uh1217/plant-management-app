@@ -1,7 +1,7 @@
 import 'package:plantapp_p/core/result/result.dart';
-import 'package:plantapp_p/Data/datasources/weather_remote_datasource.dart';
-import 'package:plantapp_p/Domain/entities/weather_forecast.dart';
-import 'package:plantapp_p/Domain/repositories/weather_repository.dart';
+import 'package:plantapp_p/data/datasources/weather_remote_datasource.dart';
+import 'package:plantapp_p/domain/entities/weather_forecast.dart';
+import 'package:plantapp_p/domain/repositories/weather_repository.dart';
 
 class WeatherRepositoryImpl implements WeatherRepository {
   final WeatherRemoteDataSource _dataSource;

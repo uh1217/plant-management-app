@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:plantapp_p/core/result/result.dart';
-import 'package:plantapp_p/Data/models/weather_forecast_dto.dart';
-import 'package:plantapp_p/Domain/entities/weather_forecast.dart';
+import 'package:plantapp_p/data/models/weather_forecast_dto.dart';
+import 'package:plantapp_p/domain/entities/weather_forecast.dart';
 
 /// Firebase Cloud Functions를 통해 날씨 예보를 가져오는 데이터 소스
 ///
