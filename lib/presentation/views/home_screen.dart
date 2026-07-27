@@ -508,14 +508,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-              // 드래그 중 삭제 존(하단 100px) 제외 영역에 40% 음영 오버레이
+              // 드래그 중 삭제 존 제외 영역에 40% 음영 오버레이
               // IgnorePointer로 감싸 드래그 제스처를 방해하지 않음
               if (_isDragging)
                 Positioned(
                   left: 0,
                   right: 0,
                   top: 0,
-                  bottom: 100,
+                  bottom: 100 + MediaQuery.of(context).viewPadding.bottom,
                   child: IgnorePointer(
                     child: Container(
                       color: Colors.black.withOpacity(0.4),
@@ -524,88 +524,97 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
               // Delete Drop Zone
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
-                left: 0,
-                right: 0,
-                bottom: _isDragging ? 0 : -120,
-                height: 100,
-                child: DragTarget<Plant>(
-                  onAcceptWithDetails: (details) async {
-                    setState(() => _isDragging = false);
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text('식물 삭제'),
-                        content: const Text('정말 삭제하시겠습니까?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('취소'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text(
-                              '삭제',
-                              style: TextStyle(color: Colors.red),
+              Builder(builder: (context) {
+                final bottomInset =
+                    MediaQuery.of(context).viewPadding.bottom;
+                final zoneHeight = 100 + bottomInset;
+                return AnimatedPositioned(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  left: 0,
+                  right: 0,
+                  bottom: _isDragging ? 0 : -(zoneHeight + 20),
+                  height: zoneHeight,
+                  child: DragTarget<Plant>(
+                    onAcceptWithDetails: (details) async {
+                      setState(() => _isDragging = false);
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('식물 삭제'),
+                          content: const Text('정말 삭제하시겠습니까?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, false),
+                              child: const Text('취소'),
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true && mounted) {
-                      await _deletePlant(details.data.id);
-                    }
-                  },
-                  builder: (context, candidateData, rejectedData) {
-                    final isHovered = candidateData.isNotEmpty;
-                    // 기본색 rgb(219,25,25) / 호버 시 약 20% 어둡게
-                    const deleteColor = Color(0xFFDB1919);
-                    const deleteColorHover = Color(0xFFAF1414);
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      decoration: BoxDecoration(
-                        color: isHovered ? deleteColorHover : deleteColor,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: deleteColor.withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, -4),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isHovered
-                                  ? Icons.delete_forever
-                                  : Icons.delete_outline,
-                              color: Colors.white,
-                              size: isHovered ? 38 : 30,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              isHovered ? '놓으세요!' : '여기에 놓으면 삭제됩니다',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: isHovered ? 15 : 13,
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(context, true),
+                              child: const Text(
+                                '삭제',
+                                style: TextStyle(color: Colors.red),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+                      );
+                      if (confirmed == true && mounted) {
+                        await _deletePlant(details.data.id);
+                      }
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      final isHovered = candidateData.isNotEmpty;
+                      // 기본색 rgb(219,25,25) / 호버 시 약 20% 어둡게
+                      const deleteColor = Color(0xFFDB1919);
+                      const deleteColorHover = Color(0xFFAF1414);
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          color: isHovered ? deleteColorHover : deleteColor,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: deleteColor.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, -4),
+                            ),
+                          ],
+                        ),
+                        // 아이콘·텍스트를 내비게이션 바 위로 올림
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: bottomInset),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isHovered
+                                    ? Icons.delete_forever
+                                    : Icons.delete_outline,
+                                color: Colors.white,
+                                size: isHovered ? 38 : 30,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                isHovered ? '놓으세요!' : '여기에 놓으면 삭제됩니다',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isHovered ? 15 : 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }),
 
               // Sidebar
               AnimatedPositioned(
