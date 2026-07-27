@@ -2,10 +2,57 @@ import 'package:flutter/material.dart';
 
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.viewModel});
 
   final LoginViewModel viewModel;
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  LoginViewModel get viewModel => widget.viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    viewModel.addListener(_onVmChanged);
+  }
+
+  @override
+  void dispose() {
+    viewModel.removeListener(_onVmChanged);
+    super.dispose();
+  }
+
+  void _onVmChanged() {
+    if (!mounted) return;
+    if (viewModel.status != LoginUiStatus.error ||
+        viewModel.errorMessage == null) {
+      return;
+    }
+    final message = viewModel.errorMessage!;
+    // ChangeNotifier 알림 중 재진입을 피하기 위해 다음 프레임에서 처리
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // 제스처/3버튼 네비게이션 바 높이만큼 위로 올려 시스템 UI와 겹치지 않게 함
+      final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.fromLTRB(16, 0, 16, 16 + bottomInset),
+          ),
+        );
+      // 동일 에러로 SnackBar가 반복 표시되지 않도록 idle로 되돌림
+      viewModel.clearError();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,18 +61,6 @@ class LoginScreen extends StatelessWidget {
         listenable: viewModel,
         builder: (context, _) {
           final isLoading = viewModel.status == LoginUiStatus.loading;
-
-          if (viewModel.status == LoginUiStatus.error &&
-              viewModel.errorMessage != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(viewModel.errorMessage!),
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                ),
-              );
-            });
-          }
 
           return Center(
             child: Padding(

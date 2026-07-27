@@ -15,6 +15,14 @@ class LoginViewModel extends ChangeNotifier {
   LoginUiStatus status = LoginUiStatus.idle;
   String? errorMessage;
 
+  /// SnackBar 표시 후 동일 에러 재표시를 막기 위해 상태를 초기화한다.
+  void clearError() {
+    if (status != LoginUiStatus.error) return;
+    status = LoginUiStatus.idle;
+    errorMessage = null;
+    notifyListeners();
+  }
+
   Future<bool> signIn() async {
     status = LoginUiStatus.loading;
     errorMessage = null;

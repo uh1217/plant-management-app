@@ -13,8 +13,17 @@
 # JNI(자바-네이티브 인터페이스) 관련 오류 방지
 -dontwarn io.flutter.embedding.**
 
-# 만약 특정 패키지에서 에러가 난다면 해당 패키지를 dontwarn 처리
+# Google Play Services / Credential Manager (릴리스 minify 시 로그인 깨짐 방지)
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.android.libraries.identity.** { *; }
+-keep class com.google.android.libraries.identity.googleid.** { *; }
 -dontwarn com.google.android.gms.**
+-dontwarn com.google.android.libraries.identity.**
+
+# Firebase Auth
+-keep class com.google.firebase.auth.** { *; }
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
 
 # 알림 및 알람 라이브러리 보호
 -keep class com.dexterous.flutterlocalnotifications.** { *; }
