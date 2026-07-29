@@ -240,7 +240,9 @@ class _ThemeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outline = Theme.of(context).colorScheme.outline;
+    final colorScheme = Theme.of(context).colorScheme;
+    final outline = colorScheme.outline;
+    final highlightColor = colorScheme.onSurfaceVariant;
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -264,14 +266,14 @@ class _ThemeChip extends StatelessWidget {
               ),
               border: isSelected
                   ? Border.all(
-                      color: meta.primaryColor,
+                      color: highlightColor,
                       width: 3,
                     )
                   : Border.all(color: Colors.transparent, width: 3),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: meta.primaryColor.withOpacity(0.4),
+                        color: highlightColor.withOpacity(0.4),
                         blurRadius: 8,
                         spreadRadius: 1,
                       )
@@ -289,7 +291,7 @@ class _ThemeChip extends StatelessWidget {
               fontSize: 12,
               fontWeight:
                   isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected ? meta.primaryColor : outline,
+              color: isSelected ? highlightColor : outline,
             ),
           ),
         ],
@@ -1035,12 +1037,11 @@ class _AppSidebarState extends State<AppSidebar> {
     return item;
   }
 
-  /// 식물 Agent 메뉴 항목 — 강조 배지 포함 특수 스타일
   Widget _buildAgentMenuItem(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () {
-        widget.onClose(); // 사이드바 닫기
-        // 사이드바 닫힘 애니메이션이 끝난 뒤 다이얼로그 표시
+        widget.onClose();
         Future.delayed(const Duration(milliseconds: 220), () {
           if (context.mounted) showPlantAgentDialog(context);
         });
@@ -1049,40 +1050,30 @@ class _AppSidebarState extends State<AppSidebar> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primaryGreen.withOpacity(0.12),
-              AppColors.primaryGreen.withOpacity(0.04),
-            ],
-          ),
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppColors.primaryGreen.withOpacity(0.25),
-            width: 1,
-          ),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.eco,
               size: 20,
-              color: AppColors.primaryGreen,
+              color: colorScheme.outline.withOpacity(0.7),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text(
                 '식물 Agent',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppColors.primaryGreen,
-                  fontWeight: FontWeight.w600,
+                  color: colorScheme.outline.withOpacity(0.7),
                 ),
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.primaryGreen,
+                color: colorScheme.outline.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(

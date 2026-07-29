@@ -76,13 +76,15 @@ class PlantRemoteDataSource {
   static const _historyLimit = 3;
 
   // 트랜잭션으로 읽기 → 추가(중복 제거) → 최신 3개만 유지 → 쓰기
+  // date: 풀 ISO (정렬용 last_watered에 사용), watering_history는 날짜(YYYY-MM-DD)만 저장
   Future<void> waterPlant(String plantId, String date) async {
     final docRef = _plantsCol().doc(plantId);
+    final dateOnly = date.split('T')[0];
     await _db.runTransaction((tx) async {
       final snap = await tx.get(docRef);
       final history =
           List<String>.from(snap.data()?['watering_history'] ?? const []);
-      if (!history.contains(date)) history.add(date);
+      if (!history.contains(dateOnly)) history.add(dateOnly);
       final trimmed = history.length > _historyLimit
           ? history.sublist(history.length - _historyLimit)
           : history;
@@ -93,31 +95,59 @@ class PlantRemoteDataSource {
     });
   }
 
+  // date: YYYY-MM-DD. 비료 기록과 함께 물 주기도 동시에 기록
   Future<void> fertilizePlant(String plantId, String date) async {
     final docRef = _plantsCol().doc(plantId);
+    final waterIso = DateTime.now().toIso8601String();
     await _db.runTransaction((tx) async {
       final snap = await tx.get(docRef);
-      final history =
+      final fertHistory =
           List<String>.from(snap.data()?['fertilizer_history'] ?? const []);
-      if (!history.contains(date)) history.add(date);
-      final trimmed = history.length > _historyLimit
-          ? history.sublist(history.length - _historyLimit)
-          : history;
-      tx.update(docRef, {'fertilizer_history': trimmed});
+      if (!fertHistory.contains(date)) fertHistory.add(date);
+      final trimmedFert = fertHistory.length > _historyLimit
+          ? fertHistory.sublist(fertHistory.length - _historyLimit)
+          : fertHistory;
+
+      final waterHistory =
+          List<String>.from(snap.data()?['watering_history'] ?? const []);
+      if (!waterHistory.contains(date)) waterHistory.add(date);
+      final trimmedWater = waterHistory.length > _historyLimit
+          ? waterHistory.sublist(waterHistory.length - _historyLimit)
+          : waterHistory;
+
+      tx.update(docRef, {
+        'fertilizer_history': trimmedFert,
+        'watering_history': trimmedWater,
+        'last_watered': waterIso,
+      });
     });
   }
 
+  // date: YYYY-MM-DD. 농약 기록과 함께 물 주기도 동시에 기록
   Future<void> pesticidePlant(String plantId, String date) async {
     final docRef = _plantsCol().doc(plantId);
+    final waterIso = DateTime.now().toIso8601String();
     await _db.runTransaction((tx) async {
       final snap = await tx.get(docRef);
-      final history =
+      final pestHistory =
           List<String>.from(snap.data()?['pesticide_history'] ?? const []);
-      if (!history.contains(date)) history.add(date);
-      final trimmed = history.length > _historyLimit
-          ? history.sublist(history.length - _historyLimit)
-          : history;
-      tx.update(docRef, {'pesticide_history': trimmed});
+      if (!pestHistory.contains(date)) pestHistory.add(date);
+      final trimmedPest = pestHistory.length > _historyLimit
+          ? pestHistory.sublist(pestHistory.length - _historyLimit)
+          : pestHistory;
+
+      final waterHistory =
+          List<String>.from(snap.data()?['watering_history'] ?? const []);
+      if (!waterHistory.contains(date)) waterHistory.add(date);
+      final trimmedWater = waterHistory.length > _historyLimit
+          ? waterHistory.sublist(waterHistory.length - _historyLimit)
+          : waterHistory;
+
+      tx.update(docRef, {
+        'pesticide_history': trimmedPest,
+        'watering_history': trimmedWater,
+        'last_watered': waterIso,
+      });
     });
   }
 

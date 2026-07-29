@@ -8,6 +8,7 @@ enum AppThemeType {
   light,
   dark,
   starbucks,
+  black_white,
   // 여기에 추가: forest, ocean, cherry, ...
 }
 
@@ -48,9 +49,14 @@ class AppTheme {
       backgroundColor: AppColors.primaryBlue,
     ),
     AppThemeType.starbucks: AppThemeMeta(
-      label: 'Starbucks',
+      label: '포레스트 그린',
       primaryColor: AppColors.starbucksGreen,
       backgroundColor: AppColors.starbucksGold,
+    ),
+    AppThemeType.black_white: AppThemeMeta(
+      label: '블랙&화이트',
+      primaryColor: AppColors.black,
+      backgroundColor: AppColors.white,
     ),
     // 새 테마 추가 시 여기에 메타 정보를 넣으세요.
   };
@@ -61,6 +67,7 @@ class AppTheme {
     AppThemeType.light: _lightTheme,
     AppThemeType.dark: _darkTheme,
     AppThemeType.starbucks: _starbucksTheme,
+    AppThemeType.black_white: _black_whiteTheme,
     // 새 테마 추가 시 여기에 ThemeData를 연결하세요.
   };
 
@@ -159,6 +166,26 @@ class AppTheme {
       onSurfaceVariant: AppColors.starbucksGold,    // 카드 텍스트: #27251F
       surfaceContainerLow: AppColors.starbucksBrown, // 사이드바 배경: #27251F
       surfaceContainerHigh: AppColors.starbucksBrown,// 사이드바 헤더: #27251F
+      outline: AppColors.white,              // 사이드바 텍스트: starbucksGold
+      error: AppColors.statusRed,
+    ),
+  );
+
+
+  static final ThemeData _black_whiteTheme = ThemeData(
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: AppColors.black,    // 전체 배경: #27251F
+    dividerColor: AppColors.white,
+    colorScheme: ColorScheme.dark(
+      primary: AppColors.gray400, //선택시 강조
+      secondary: AppColors.white,
+      tertiary: Colors.transparent,          // 이미지 섹션 오버레이 완전 투명
+      surface: AppColors.black,             // 헤더 배경: #27251F
+      onSurface: AppColors.white,                    // 헤더 텍스트: #FFFFFF
+      surfaceContainer: AppColors.black,     // 카드 배경: starbucksGold
+      onSurfaceVariant: AppColors.white,    // 카드 텍스트: #27251F
+      surfaceContainerLow: AppColors.black, // 사이드바 배경: #27251F
+      surfaceContainerHigh: AppColors.black,// 사이드바 헤더: #27251F
       outline: AppColors.white,              // 사이드바 텍스트: starbucksGold
       error: AppColors.statusRed,
     ),

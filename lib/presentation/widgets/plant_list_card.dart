@@ -54,7 +54,7 @@ class _PlantListCardState extends State<PlantListCard> {
         AppTheme.themeNotifier.value == AppThemeType.starbucks;
 
     const Color green  = Color(0xFF16A34A); // green-700
-    const Color yellow = Color(0xFFCA8A04); // yellow-600
+    const Color yellow = Color.fromARGB(255, 223, 219, 5); // yellow-600
 
     if (daysUntil >= 3) {
       // 3일 이상 여유 → 초록 (starbucks 테마는 흰색)

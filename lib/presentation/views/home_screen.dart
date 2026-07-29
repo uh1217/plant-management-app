@@ -847,10 +847,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 Text(
                   _activeSearchQuery.isNotEmpty
-                      ? "'$_activeSearchQuery' 검색"
+                      ? "'$_activeSearchQuery' 검색 (${_filteredPlants.length})"
                       : _selectedDate != null
-                          ? '물주기 $_selectedDate'
-                          : (_selectedCategory ?? '내 식물'),
+                          ? '물주기 $_selectedDate (${_filteredPlants.length})'
+                          : '${_selectedCategory ?? '내 식물'} (${_filteredPlants.length})',
                   style: TextStyle(
                     fontSize: 16,
                     color: colorScheme.onSurface,

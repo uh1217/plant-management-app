@@ -23,6 +23,7 @@ class AppColors {
   static const gray700 = Color(0xFF374151);
   static const gray800 = Color(0xFF1F2937);
   static const gray900 = Color(0xFF111827);
+  static const black = Color.fromARGB(255, 0, 0, 0);
   
   // Background
   static const background = Color(0xFFFAFAFA);

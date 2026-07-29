@@ -226,6 +226,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// 선택된 식물들에 물 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
+  /// today: 풀 ISO — lastWatered(정렬용)는 그대로, wateringHistory는 날짜(YYYY-MM-DD)만 저장
   Future<bool> waterPlants(Set<String> plantIds, String today) async {
     final results = await Future.wait(
       plantIds.map((id) => _waterPlant(id, today)),
@@ -233,11 +234,12 @@ class HomeViewModel extends ChangeNotifier {
     for (final result in results) {
       if (result case Failure(:final message)) return _fail(message);
     }
+    final todayDate = today.split('T')[0];
     plants = plants.map((p) {
       if (!plantIds.contains(p.id)) return p;
       return p.copyWith(
         lastWatered: today,
-        wateringHistory: _trimHistory(p.wateringHistory, today),
+        wateringHistory: _trimHistory(p.wateringHistory, todayDate),
       );
     }).toList();
     notifyListeners();
@@ -245,6 +247,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// 선택된 식물들에 비료 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
+  /// today: YYYY-MM-DD — 비료 기록과 함께 물 주기도 갱신
   Future<bool> fertilizePlants(Set<String> plantIds, String today) async {
     final results = await Future.wait(
       plantIds.map((id) => _fertilizePlant(id, today)),
@@ -252,10 +255,13 @@ class HomeViewModel extends ChangeNotifier {
     for (final result in results) {
       if (result case Failure(:final message)) return _fail(message);
     }
+    final waterIso = DateTime.now().toIso8601String();
     plants = plants.map((p) {
       if (!plantIds.contains(p.id)) return p;
       return p.copyWith(
         fertilizerHistory: _trimHistory(p.fertilizerHistory, today),
+        wateringHistory: _trimHistory(p.wateringHistory, today),
+        lastWatered: waterIso,
       );
     }).toList();
     notifyListeners();
@@ -263,6 +269,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// 선택된 식물들에 농약 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
+  /// today: YYYY-MM-DD — 농약 기록과 함께 물 주기도 갱신
   Future<bool> pesticidePlants(Set<String> plantIds, String today) async {
     final results = await Future.wait(
       plantIds.map((id) => _pesticidePlant(id, today)),
@@ -270,10 +277,13 @@ class HomeViewModel extends ChangeNotifier {
     for (final result in results) {
       if (result case Failure(:final message)) return _fail(message);
     }
+    final waterIso = DateTime.now().toIso8601String();
     plants = plants.map((p) {
       if (!plantIds.contains(p.id)) return p;
       return p.copyWith(
         pesticideHistory: _trimHistory(p.pesticideHistory, today),
+        wateringHistory: _trimHistory(p.wateringHistory, today),
+        lastWatered: waterIso,
       );
     }).toList();
     notifyListeners();
