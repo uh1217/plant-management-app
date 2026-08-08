@@ -19,6 +19,7 @@ import 'package:plantapp_p/domain/usecases/pesticide_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_plants_usecase.dart';
 import 'package:plantapp_p/domain/usecases/save_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/sign_in_with_google_usecase.dart';
+import 'package:plantapp_p/domain/usecases/sign_in_with_apple_usecase.dart';
 import 'package:plantapp_p/domain/usecases/sign_out_usecase.dart';
 import 'package:plantapp_p/domain/usecases/water_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/send_message_usecase.dart';
@@ -50,6 +51,7 @@ class ServiceLocator {
   late final FertilizePlantUseCase fertilizePlantUseCase;
   late final PesticidePlantUseCase pesticidePlantUseCase;
   late final SignInWithGoogleUseCase signInWithGoogleUseCase;
+  late final SignInWithAppleUseCase signInWithAppleUseCase;
   late final SignOutUseCase signOutUseCase;
   late final SendMessageUseCase sendMessageUseCase;
   late final GetWeatherRecommendationUseCase getWeatherRecommendationUseCase;
@@ -81,6 +83,7 @@ class ServiceLocator {
     fertilizePlantUseCase = FertilizePlantUseCase(plantRepository);
     pesticidePlantUseCase = PesticidePlantUseCase(plantRepository);
     signInWithGoogleUseCase = SignInWithGoogleUseCase(authRepository);
+    signInWithAppleUseCase = SignInWithAppleUseCase(authRepository);
     signOutUseCase = SignOutUseCase(authRepository);
     sendMessageUseCase = SendMessageUseCase(chatRepository);
     getWeatherRecommendationUseCase = GetWeatherRecommendationUseCase(
@@ -109,6 +112,7 @@ class ServiceLocator {
 
   LoginViewModel createLoginViewModel() => LoginViewModel(
         signInWithGoogle: signInWithGoogleUseCase,
+        signInWithApple: signInWithAppleUseCase,
       );
 
   /// [uid] FirebaseAuth.currentUser!.uid - 사용자별 대화 세션과 RAG 컨텍스트 분리에 사용

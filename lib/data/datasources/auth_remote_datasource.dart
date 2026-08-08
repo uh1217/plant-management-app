@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 /// Firebase Auth + Google Sign-In 원격 데이터 소스- 로그인 및 인증 데이터
 class AuthRemoteDataSource {
@@ -68,5 +73,58 @@ class AuthRemoteDataSource {
     // disconnect는 계정 연결 해제로 재동의 팝업을 유발할 수 있어 signOut만 사용
     await _googleSignIn.signOut();
     await _auth.signOut();
+  }
+
+  /// Apple ID 로그인 (iOS 전용)
+  /// nonce: 중간자 공격 방지용 1회성 랜덤 문자열
+  ///   - 원본 nonce → Firebase에 전달
+  ///   - SHA-256 해시 → Apple에 전달
+  /// Apple은 응답 토큰에 해시를 포함시켜 반환 → Firebase가 원본으로 검증
+  Future<String> signInWithApple() async {
+    // ① 보안용 랜덤 nonce 생성
+    final rawNonce = _generateNonce();
+    final hashedNonce = _sha256ofString(rawNonce);
+
+    // ② Apple에 인증 요청 (해시된 nonce 전달)
+    // 최초 로그인 시에만 email·fullName이 제공됨, 이후 null
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+
+    // ③ Apple 응답 토큰 + 원본 nonce로 Firebase OAuthCredential 생성
+    final oauthCredential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+    );
+
+    // ④ Firebase 로그인 → uid 반환
+    final userCredential = await _auth.signInWithCredential(oauthCredential);
+    final uid = userCredential.user?.uid;
+    if (uid == null) {
+      throw StateError('Firebase user is null after Apple sign-in');
+    }
+    return uid;
+  }
+
+  // ── nonce 헬퍼 ──────────────────────────────────────────────────────────────
+
+  /// 32바이트 랜덤 문자열 생성 (URL-safe 문자만 사용)
+  String _generateNonce([int length = 32]) {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => chars[random.nextInt(chars.length)])
+        .join();
+  }
+
+  /// 문자열을 SHA-256으로 해싱 후 16진수 문자열로 반환
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 }

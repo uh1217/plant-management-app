@@ -48,6 +48,8 @@ dependencies:
   firebase_storage: ^13.2.0
   firebase_app_check: ^0.4.4+2
   firebase_ai: ^3.12.2
+  sign_in_with_apple: ^6.0.0   # iOS Apple ID 로그인
+  crypto: ^3.0.3               # nonce SHA-256 해싱 (Apple 로그인 보안 필수)
   cached_network_image: ^3.4.1
   http: ^1.2.0
   showcaseview: ^5.0.2

@@ -32,6 +32,17 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Result<String>> signInWithApple() async {
+    try {
+      final uid = await _remote.signInWithApple();
+      return Success(uid);
+    } catch (e) {
+      debugPrint('[Auth] Apple sign-in failed: $e');
+      return Failure(error: e, message: _mapAppleSignInMessage(e));
+    }
+  }
+
+  @override
   Future<Result<void>> signOut() async {
     try {
       await _remote.signOut();
@@ -63,6 +74,20 @@ class AuthRepositoryImpl implements AuthRepository {
       case GoogleSignInExceptionCode.unknownError:
         return 'Google 로그인에 실패했습니다. (${e.description ?? e.code.name})';
     }
+  }
+
+  String _mapAppleSignInMessage(Object e) {
+    final text = e.toString();
+    if (text.contains('canceled') || text.contains('AuthorizationErrorCode.canceled')) {
+      return '로그인이 취소되었습니다.';
+    }
+    if (text.contains('network') || text.contains('Network')) {
+      return '네트워크 오류로 로그인하지 못했습니다. 연결을 확인해 주세요.';
+    }
+    if (text.contains('notHandled') || text.contains('unknown')) {
+      return 'Apple 로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+    return 'Apple 로그인에 실패했습니다.';
   }
 
   String _mapGenericSignInMessage(Object e) {

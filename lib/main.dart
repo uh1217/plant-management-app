@@ -9,6 +9,9 @@ import 'package:plantapp_p/core/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart'; 
 // 파이어베이스 설정 파일 (DefaultFirebaseOptions를 인식하게 해줌)
 import 'firebase_options.dart';
+// App Check (무단 API 쿼터 소비 방지)
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -31,15 +34,18 @@ void main() async {
     persistenceEnabled: true,
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
-  // TODO(보안): 프로덕션 배포 전 App Check를 반드시 활성화할 것.
-  // App Check가 꺼져 있으면 firebase_options.dart를 얻은 누구나
-  // 이 프로젝트의 Gemini 쿼터를 무단 소비할 수 있음.
-  // 활성화 시 Firebase Console > App Check > Android > Play Integrity 등록 필요.
-  /*await FirebaseAppCheck.instance.activate(
+  // [App Check] 무단 API 쿼터 소비 방지
+  // - Release: Play Integrity (Google Play에 앱 등록 후 Firebase Console에서 활성화 필요)
+  // - Debug:   개발/테스트용 (Firebase Console > App Check > Debug token 발급 필요)
+  // Firebase Console 설정 완료 후 아래 코드가 동작합니다.
+  await FirebaseAppCheck.instance.activate(
     androidProvider: kReleaseMode
-        ? AndroidProvider.playIntegrity
-        : AndroidProvider.debug,
-  );*/
+        ? AndroidProvider.playIntegrity   // 배포용: Google Play Integrity API
+        : AndroidProvider.debug,          // 개발용: Debug token
+    appleProvider: kReleaseMode
+        ? AppleProvider.deviceCheck       // 배포용: Apple DeviceCheck API
+        : AppleProvider.debug,            // 개발용: Debug token
+  );
 
   ServiceLocator.instance.init(); //init 동작 시점 먼저 나와야 함
   await AppTheme.loadTheme();

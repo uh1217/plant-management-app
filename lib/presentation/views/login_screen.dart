@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
 
@@ -89,16 +92,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     '내 식물들을 체계적으로 관리하세요',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context)
+                          color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.6),
+                          .withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 48),
                   if (isLoading)
                     const CircularProgressIndicator()
+                  else if (Platform.isIOS)
+                    // ── iOS: Apple ID 로그인 버튼 ──────────────────────────
+                    // Apple 가이드라인 준수 공식 버튼 위젯 사용 (임의 디자인 불가)
+                    SignInWithAppleButton(
+                      onPressed: () => viewModel.signInWithApple(),
+                      style: SignInWithAppleButtonStyle.black,
+                      borderRadius: BorderRadius.circular(12),
+                    )
                   else
+                    // ── Android: Google 로그인 버튼 ──────────────────────────
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(

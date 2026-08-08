@@ -29,9 +29,19 @@ class NotificationService {
     const androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // iOS: 앱 시작 시 알림 권한 팝업을 표시하고 배지·소리·배너를 허용 요청
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,   // 배너/잠금화면 알림 표시 허용 요청
+      requestBadgePermission: true,   // 앱 아이콘 배지 숫자 허용 요청
+      requestSoundPermission: true,   // 알림 소리 허용 요청
+    );
+
     // flutter_local_notifications 20.x: initialize는 named parameter 방식
     await _plugin.initialize(
-      settings: const InitializationSettings(android: androidSettings),
+      settings: const InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,             // iOS 알림 초기화 추가
+      ),
     );
 
     // Android 13+(API 33+) 기기에서 알림 표시 권한을 사용자에게 요청.
@@ -78,6 +88,11 @@ class NotificationService {
           importance: Importance.high, // 소리 + 화면 상단 헤드업 팝업
           priority: Priority.high,     // 알림 목록 상단 우선순위 표시
           // sound, enableVibration, playSound는 미설정 시 기기 기본값 사용
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,   // 포그라운드 상태에서도 배너 표시
+          presentBadge: true,   // 배지 업데이트
+          presentSound: true,   // 알림 소리 재생
         ),
       ),
       androidScheduleMode: scheduleMode,
