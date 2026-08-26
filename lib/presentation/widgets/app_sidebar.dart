@@ -5,6 +5,7 @@ import 'package:showcaseview/showcaseview.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:plantapp_p/data/datasources/city_datasource.dart';
+import 'package:plantapp_p/core/services/app_version.dart';
 import 'package:plantapp_p/core/services/notification_service.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';
@@ -361,16 +362,16 @@ void showAppInfo(BuildContext context) {
         children: [
           _appInfoIcon(),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '식물 관리 앱',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 2),
-                Text('Version 2.4.3', style: TextStyle(fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(AppVersion.instance.label, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -414,7 +415,7 @@ void showAppInfo(BuildContext context) {
             showLicensePage(
               context: context,
               applicationName: '식물 관리 앱',
-              applicationVersion: '2.4.3',
+              applicationVersion: AppVersion.instance.label,
               applicationIcon: _appInfoIcon(size: 40),
             );
           },

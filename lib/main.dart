@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'presentation/views/home_screen.dart';
 import 'presentation/app_theme.dart';
 import 'presentation/views/login_screen.dart';
+import 'package:plantapp_p/core/services/app_version.dart';
 import 'package:plantapp_p/core/services/notification_service.dart';
 
 // 파이어베이스 본체 (Firebase.initializeApp을 인식하게 해줌)
@@ -25,6 +26,7 @@ void main() async {
   registerAppLicenses();
   // 알림 채널 초기화 및 알림 권한 요청 (Firebase보다 먼저 실행)
   await NotificationService.instance.init();
+  await AppVersion.instance.init();
   await Firebase.initializeApp( //firebase 와 앱 연결 (Firebase SDK 초기화)
     options: DefaultFirebaseOptions.currentPlatform,
   );

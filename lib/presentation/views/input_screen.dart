@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/core/services/app_version.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
@@ -262,9 +263,9 @@ class _InputScreenState extends State<InputScreen> {
                         maxLines: 1,
                       ),
                       const SizedBox(height: 1),
-                      const Text(
-                        'Version 1.1.1',
-                        style: TextStyle(
+                      Text(
+                        AppVersion.instance.label,
+                        style: const TextStyle(
                             fontSize: 10,
                             color: AppColors.gray400),
                       ),
