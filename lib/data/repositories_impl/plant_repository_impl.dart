@@ -1,8 +1,10 @@
 import 'package:plantapp_p/core/result/result.dart';
+import 'package:plantapp_p/domain/entities/care_record.dart';
 import 'package:plantapp_p/domain/entities/gallery_photo.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/domain/repositories/plant_repository.dart';
 import 'package:plantapp_p/data/datasources/plant_remote_datasource.dart';
+import 'package:plantapp_p/data/mappers/care_record_mapper.dart';
 import 'package:plantapp_p/data/mappers/gallery_photo_mapper.dart';
 import 'package:plantapp_p/data/mappers/plant_mapper.dart';
 
@@ -55,9 +57,14 @@ class PlantRepositoryImpl implements PlantRepository {
   }
 
   @override
-  Future<Result<void>> fertilizePlant(String plantId, String isoDate) async {
+  Future<Result<void>> fertilizePlant(String plantId, CareRecord record,
+      {required bool includeWatering}) async {
     try {
-      await _remote.fertilizePlant(plantId, isoDate);
+      await _remote.fertilizePlant(
+        plantId,
+        CareRecordMapper.toDto(record),
+        includeWatering: includeWatering,
+      );
       return const Success(null);
     } catch (e) {
       return Failure(error: e, message: '비료 주기 기록에 실패했습니다.');
@@ -65,9 +72,14 @@ class PlantRepositoryImpl implements PlantRepository {
   }
 
   @override
-  Future<Result<void>> pesticidePlant(String plantId, String isoDate) async {
+  Future<Result<void>> pesticidePlant(String plantId, CareRecord record,
+      {required bool includeWatering}) async {
     try {
-      await _remote.pesticidePlant(plantId, isoDate);
+      await _remote.pesticidePlant(
+        plantId,
+        CareRecordMapper.toDto(record),
+        includeWatering: includeWatering,
+      );
       return const Success(null);
     } catch (e) {
       return Failure(error: e, message: '농약 주기 기록에 실패했습니다.');

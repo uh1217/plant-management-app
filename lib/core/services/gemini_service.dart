@@ -187,6 +187,7 @@ class GeminiService {
     buffer.writeln('아래는 사용자가 앱에 등록한 반려식물 목록입니다. 질문 답변 시 이 정보를 우선 참고하세요.');
     buffer.writeln('');
 
+    //매칭된 식물 ID  정보 읽어옴
     int idx = 1;
     for (final id in ids) {
       try {
@@ -270,8 +271,9 @@ class GeminiService {
     final categories = List<String>.from(data['categories'] ?? []);
     final wateringFreq = (data['watering_frequency'] as num?)?.toInt() ?? 0;
     final lastWatered = data['last_watered'] as String? ?? '';
+    // 구버전(문자열)·신버전(맵: date, name 등) 혼합 배열 대응
     final fertilizerHistory =
-        List<String>.from(data['fertilizer_history'] ?? []);
+        List<dynamic>.from(data['fertilizer_history'] ?? []);
     final notes = data['notes'] as String? ?? '';
 
     buffer.writeln('[식물 $idx] $name');
@@ -299,16 +301,26 @@ class GeminiService {
     }
 
     if (fertilizerHistory.isNotEmpty) {
-      final lastFert = fertilizerHistory.last;
+      final lastRaw = fertilizerHistory.last;
+      final String lastFert;
+      final String fertName;
+      if (lastRaw is Map) {
+        lastFert = lastRaw['date'] as String? ?? '';
+        fertName = lastRaw['name'] as String? ?? '';
+      } else {
+        lastFert = lastRaw.toString();
+        fertName = '';
+      }
+      final nameSuffix = fertName.isEmpty ? '' : ', $fertName';
       try {
         final fertDate = DateTime.parse(lastFert);
         final fertDays = today
             .difference(
                 DateTime(fertDate.year, fertDate.month, fertDate.day))
             .inDays;
-        buffer.writeln('  - 마지막 비료 준 날: $lastFert ($fertDays일 전)');
+        buffer.writeln('  - 마지막 비료 준 날: $lastFert ($fertDays일 전$nameSuffix)');
       } catch (_) {
-        buffer.writeln('  - 마지막 비료 준 날: $lastFert');
+        buffer.writeln('  - 마지막 비료 준 날: $lastFert$nameSuffix');
       }
     } else {
       buffer.writeln('  - 마지막 비료 준 날: 기록 없음');
@@ -335,7 +347,7 @@ class GeminiService {
   ///   - Intent 분류 오류: allPlants 로 안전하게 폴백
   Future<String> sendMessage({
     required String uid,
-    required String text,
+    required String text, //사용자가 보낸 질문
     Uint8List? imageBytes,
     String mimeType = 'image/jpeg',
   }) async {
@@ -367,9 +379,9 @@ class GeminiService {
     }
 
     final promptText =
-        ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text';
+        ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text'; //보낼 최종 프롬프트 조립
 
-    // 이미지 유무에 따라 Content 구성 분기
+    // 이미지 유무에 따라 Content 구성 분기 (메세지 객체 생성)
     final Content content;
     if (imageBytes != null) {
       content = Content.multi([
@@ -380,6 +392,7 @@ class GeminiService {
       content = Content.text(promptText);
     }
 
+    //Gemini 채팅 API 호출(메세지 전송 및 수신)
     debugPrint('[GeminiService] 메시지 전송 (이미지: ${imageBytes != null})');
     final response = await _chatSession!.sendMessage(content);
     debugPrint(
@@ -388,7 +401,7 @@ class GeminiService {
   }
 
   /// 스트리밍 방식으로 메시지를 전송한다.
-  /// RAG 로직은 sendMessage와 동일하며, 응답 텍스트를 청크 단위로 yield한다.
+  /// RAG 로직은 sendMessage와 동일하며, 응답 텍스트를 청크 단위로 yield한다. (다른건 마지막 Gemini  호출 방식 뿐)
   /// UI에서 첫 글자부터 즉시 표시되어 체감 속도가 개선된다.
   Stream<String> sendMessageStream({
     required String uid,
@@ -416,6 +429,7 @@ class GeminiService {
 
     final promptText = ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text';
 
+    //스트리밍 수신(Gemini가 답을 조각(chunk)으로 보내서 청크가 올 때마다 StringBuffer에 이어 붙임 ->notifyListeners()로 UI를 다시 그림 → 타이핑처럼 보임)
     final Content content;
     if (imageBytes != null) {
       content = Content.multi([

@@ -4,9 +4,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:plantapp_p/domain/entities/care_record.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';
+import 'package:plantapp_p/presentation/utils/care_display.dart';
 import 'package:plantapp_p/presentation/widgets/plant_gallery_dialog.dart';
 import 'dart:io';
 
@@ -171,29 +173,9 @@ class _PlantListCardState extends State<PlantListCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...widget.plant.fertilizerHistory.map((date) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryGreen,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDate(date),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
+                ...widget.plant.fertilizerHistory.map((record) =>
+                    _buildCareRecordRow(
+                        record, AppColors.primaryGreen, colorScheme)),
               ],
               if (widget.plant.pesticideHistory.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -206,29 +188,9 @@ class _PlantListCardState extends State<PlantListCard> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...widget.plant.pesticideHistory.map((date) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.yellow200,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDate(date),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
+                ...widget.plant.pesticideHistory.map((record) =>
+                    _buildCareRecordRow(
+                        record, AppColors.yellow200, colorScheme)),
               ],
             ],
           ),
@@ -251,6 +213,41 @@ class _PlantListCardState extends State<PlantListCard> {
     } catch (e) {
       return dateStr;
     }
+  }
+
+  /// 비료/농약 기록 행: "날짜 · 이름(주기)" — 구버전 문자열 기록은 날짜만 표시
+  Widget _buildCareRecordRow(
+      CareRecord record, Color dotColor, ColorScheme colorScheme) {
+    final text = record.isLegacy
+        ? _formatDate(record.date)
+        : '${_formatDate(record.date)} · ${careLabel(record.name, record.cycle)}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPlantGalleryDialog() {

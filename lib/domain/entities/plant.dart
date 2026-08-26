@@ -1,3 +1,5 @@
+import 'package:plantapp_p/domain/entities/care_record.dart';
+
 /// 식물 도메인 엔티티 (외부 라이브러리·Firestore 의존 없음)
 class Plant {
   final String id;
@@ -7,8 +9,8 @@ class Plant {
   final int wateringFrequency; // 물 주기 (일)
   final String lastWatered; // 최근 물 준 날짜 (ISO 형식)
   final List<String> wateringHistory; // 물 준 날짜들
-  final List<String> fertilizerHistory; // 비료 준 날짜들
-  final List<String> pesticideHistory; // 농약 준 날짜들
+  final List<CareRecord> fertilizerHistory; // 비료 준 기록들 (버튼 스냅샷 포함)
+  final List<CareRecord> pesticideHistory; // 농약 준 기록들 (버튼 스냅샷 포함)
   final String notes;
 
   const Plant({
@@ -32,8 +34,8 @@ class Plant {
     int? wateringFrequency,
     String? lastWatered,
     List<String>? wateringHistory,
-    List<String>? fertilizerHistory,
-    List<String>? pesticideHistory,
+    List<CareRecord>? fertilizerHistory,
+    List<CareRecord>? pesticideHistory,
     String? notes,
   }) {
     return Plant(

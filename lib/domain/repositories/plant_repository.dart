@@ -1,4 +1,5 @@
 import 'package:plantapp_p/core/result/result.dart';
+import 'package:plantapp_p/domain/entities/care_record.dart';
 import 'package:plantapp_p/domain/entities/gallery_photo.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 
@@ -9,8 +10,10 @@ abstract class PlantRepository {
   Future<Result<void>> savePlant(Plant plant);
   Future<Result<void>> deletePlant(String plantId);
   Future<Result<void>> waterPlant(String plantId, String isoDate);
-  Future<Result<void>> fertilizePlant(String plantId, String isoDate);
-  Future<Result<void>> pesticidePlant(String plantId, String isoDate);
+  Future<Result<void>> fertilizePlant(String plantId, CareRecord record,
+      {required bool includeWatering});
+  Future<Result<void>> pesticidePlant(String plantId, CareRecord record,
+      {required bool includeWatering});
   Future<Result<List<GalleryPhoto>>> getGalleryPhotos(String plantId);
   Future<Result<void>> addGalleryPhoto(String plantId, GalleryPhoto photo);
 }

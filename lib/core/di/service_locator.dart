@@ -1,19 +1,25 @@
 import 'package:plantapp_p/data/datasources/auth_remote_datasource.dart';
+import 'package:plantapp_p/data/datasources/care_item_remote_datasource.dart';
 import 'package:plantapp_p/data/datasources/city_datasource.dart';
 import 'package:plantapp_p/data/datasources/gemini_datasource.dart';
 import 'package:plantapp_p/data/datasources/plant_remote_datasource.dart';
 import 'package:plantapp_p/data/datasources/weather_remote_datasource.dart';
 import 'package:plantapp_p/data/repositories_impl/auth_repository_impl.dart';
+import 'package:plantapp_p/data/repositories_impl/care_item_repository_impl.dart';
 import 'package:plantapp_p/data/repositories_impl/chat_repository_impl.dart';
 import 'package:plantapp_p/data/repositories_impl/plant_repository_impl.dart';
 import 'package:plantapp_p/data/repositories_impl/weather_repository_impl.dart';
 import 'package:plantapp_p/core/services/gemini_service.dart';
 import 'package:plantapp_p/core/services/weather_recommendation_service.dart';
 import 'package:plantapp_p/domain/repositories/auth_repository.dart';
+import 'package:plantapp_p/domain/repositories/care_item_repository.dart';
 import 'package:plantapp_p/domain/repositories/plant_repository.dart';
 import 'package:plantapp_p/domain/repositories/chat_repository.dart';
 import 'package:plantapp_p/domain/repositories/weather_repository.dart';
+import 'package:plantapp_p/domain/usecases/add_care_item_usecase.dart';
+import 'package:plantapp_p/domain/usecases/delete_care_item_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
+import 'package:plantapp_p/domain/usecases/get_care_items_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/pesticide_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_plants_usecase.dart';
@@ -36,6 +42,7 @@ class ServiceLocator {
   static final ServiceLocator instance = ServiceLocator._(); //싱글톤 패턴 부여
 
   late final PlantRepository plantRepository;
+  late final CareItemRepository careItemRepository;
   late final AuthRepository authRepository;
   late final ChatRepository chatRepository;
   late final WeatherRepository weatherRepository;
@@ -50,6 +57,9 @@ class ServiceLocator {
   late final WaterPlantUseCase waterPlantUseCase;
   late final FertilizePlantUseCase fertilizePlantUseCase;
   late final PesticidePlantUseCase pesticidePlantUseCase;
+  late final GetCareItemsUseCase getCareItemsUseCase;
+  late final AddCareItemUseCase addCareItemUseCase;
+  late final DeleteCareItemUseCase deleteCareItemUseCase;
   late final SignInWithGoogleUseCase signInWithGoogleUseCase;
   late final SignInWithAppleUseCase signInWithAppleUseCase;
   late final SignOutUseCase signOutUseCase;
@@ -62,6 +72,7 @@ class ServiceLocator {
   void init() {
     // 데이터 소스 생성
     final plantDs = PlantRemoteDataSource();
+    final careItemDs = CareItemRemoteDataSource();
     final authDs = AuthRemoteDataSource();
     cityDataSource = CityDataSource();
     weatherDataSource = WeatherRemoteDataSource();
@@ -71,6 +82,7 @@ class ServiceLocator {
 
     // RepositoryImpl 에 주입
     plantRepository = PlantRepositoryImpl(plantDs);
+    careItemRepository = CareItemRepositoryImpl(careItemDs);
     authRepository = AuthRepositoryImpl(authDs);
     chatRepository = ChatRepositoryImpl(geminiDs);
     weatherRepository = WeatherRepositoryImpl(weatherDataSource);
@@ -82,6 +94,9 @@ class ServiceLocator {
     waterPlantUseCase = WaterPlantUseCase(plantRepository);
     fertilizePlantUseCase = FertilizePlantUseCase(plantRepository);
     pesticidePlantUseCase = PesticidePlantUseCase(plantRepository);
+    getCareItemsUseCase = GetCareItemsUseCase(careItemRepository);
+    addCareItemUseCase = AddCareItemUseCase(careItemRepository);
+    deleteCareItemUseCase = DeleteCareItemUseCase(careItemRepository);
     signInWithGoogleUseCase = SignInWithGoogleUseCase(authRepository);
     signInWithAppleUseCase = SignInWithAppleUseCase(authRepository);
     signOutUseCase = SignOutUseCase(authRepository);
@@ -103,6 +118,9 @@ class ServiceLocator {
         waterPlant: waterPlantUseCase,
         fertilizePlant: fertilizePlantUseCase,
         pesticidePlant: pesticidePlantUseCase,
+        getCareItems: getCareItemsUseCase,
+        addCareItem: addCareItemUseCase,
+        deleteCareItem: deleteCareItemUseCase,
         signOut: signOutUseCase,
         geminiService: geminiService,
         getWeatherRecommendation: getWeatherRecommendationUseCase,

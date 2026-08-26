@@ -1,3 +1,5 @@
+import 'package:plantapp_p/data/models/care_record_dto.dart';
+
 /// Firestore plants 문서 DTO (snake_case)
 class PlantDto {
   final String id;
@@ -7,8 +9,8 @@ class PlantDto {
   final int wateringFrequency;
   final String lastWatered;
   final List<String> wateringHistory;
-  final List<String> fertilizerHistory;
-  final List<String> pesticideHistory;
+  final List<CareRecordDto> fertilizerHistory;
+  final List<CareRecordDto> pesticideHistory;
   final String notes;
 
   const PlantDto({
@@ -33,10 +35,13 @@ class PlantDto {
       wateringFrequency: (map['watering_frequency'] as num?)?.toInt() ?? 0,
       lastWatered: map['last_watered'] as String? ?? '',
       wateringHistory: List<String>.from(map['watering_history'] ?? const []),
-      fertilizerHistory:
-          List<String>.from(map['fertilizer_history'] ?? const []),
-      pesticideHistory:
-          List<String>.from(map['pesticide_history'] ?? const []),
+      // 구버전 문자열·신버전 맵이 섞여 있어도 모두 파싱
+      fertilizerHistory: (map['fertilizer_history'] as List? ?? const [])
+          .map(CareRecordDto.fromRaw)
+          .toList(),
+      pesticideHistory: (map['pesticide_history'] as List? ?? const [])
+          .map(CareRecordDto.fromRaw)
+          .toList(),
       notes: map['notes'] as String? ?? '',
     );
   }
@@ -49,8 +54,10 @@ class PlantDto {
       'watering_frequency': wateringFrequency,
       'last_watered': lastWatered,
       'watering_history': wateringHistory,
-      'fertilizer_history': fertilizerHistory,
-      'pesticide_history': pesticideHistory,
+      'fertilizer_history':
+          fertilizerHistory.map((r) => r.toFirestore()).toList(),
+      'pesticide_history':
+          pesticideHistory.map((r) => r.toFirestore()).toList(),
       'notes': notes,
     };
   }

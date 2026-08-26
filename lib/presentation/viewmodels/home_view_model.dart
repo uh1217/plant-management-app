@@ -5,9 +5,15 @@ import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/core/services/gemini_service.dart';
 import 'package:plantapp_p/data/datasources/city_datasource.dart';
 import 'package:plantapp_p/data/datasources/weather_remote_datasource.dart';
+import 'package:plantapp_p/domain/care_history_limits.dart';
+import 'package:plantapp_p/domain/entities/care_item.dart';
+import 'package:plantapp_p/domain/entities/care_record.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/domain/usecases/add_care_item_usecase.dart';
+import 'package:plantapp_p/domain/usecases/delete_care_item_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';
+import 'package:plantapp_p/domain/usecases/get_care_items_usecase.dart';
 import 'package:plantapp_p/domain/usecases/pesticide_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_plants_usecase.dart';
 import 'package:plantapp_p/domain/usecases/save_plant_usecase.dart';
@@ -35,6 +41,9 @@ class HomeViewModel extends ChangeNotifier {
     required WaterPlantUseCase waterPlant,
     required FertilizePlantUseCase fertilizePlant,
     required PesticidePlantUseCase pesticidePlant,
+    required GetCareItemsUseCase getCareItems,
+    required AddCareItemUseCase addCareItem,
+    required DeleteCareItemUseCase deleteCareItem,
     required SignOutUseCase signOut,
     required GeminiService geminiService,
     required GetWeatherRecommendationUseCase getWeatherRecommendation,
@@ -46,6 +55,9 @@ class HomeViewModel extends ChangeNotifier {
         _waterPlant = waterPlant,
         _fertilizePlant = fertilizePlant,
         _pesticidePlant = pesticidePlant,
+        _getCareItems = getCareItems,
+        _addCareItem = addCareItem,
+        _deleteCareItem = deleteCareItem,
         _signOut = signOut,
         _geminiService = geminiService,
         _getWeatherRecommendation = getWeatherRecommendation,
@@ -58,6 +70,9 @@ class HomeViewModel extends ChangeNotifier {
   final WaterPlantUseCase _waterPlant;
   final FertilizePlantUseCase _fertilizePlant;
   final PesticidePlantUseCase _pesticidePlant;
+  final GetCareItemsUseCase _getCareItems;
+  final AddCareItemUseCase _addCareItem;
+  final DeleteCareItemUseCase _deleteCareItem;
   final SignOutUseCase _signOut;
   final GeminiService _geminiService;
   final GetWeatherRecommendationUseCase _getWeatherRecommendation;
@@ -67,6 +82,7 @@ class HomeViewModel extends ChangeNotifier {
   HomeUiStatus status = HomeUiStatus.idle;
   String? errorMessage;
   List<Plant> plants = [];
+  List<CareItem> careItems = []; // 계정 공유 케어 버튼 목록 (생성 순서)
 
   // ─── 날씨 추천 카드 상태 ────────────────────────────────────────────────────
   RecommendationStatus recommendationStatus = RecommendationStatus.idle;
@@ -202,7 +218,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<bool> savePlant(Plant plant) async {
     final result = await _savePlant(plant);
     if (result is Failure) return _fail(result.message);
-    _geminiService.invalidateRagCache();
+    _geminiService.invalidateRagCache(); //RAG 식물 목록 업데이트
     invalidateRecommendationCache();
     return true;
   }
@@ -215,14 +231,62 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
-  static const _historyLimit = 3;
+  // ─── 케어 버튼 (비료/농약) ─────────────────────────────────────────────────
+
+  /// 케어 버튼 목록 로드 — 최초 1회 기본 버튼("비료"/"농약") 자동 생성 포함
+  /// 실패해도 홈 화면 전체를 막지 않도록 status는 건드리지 않음
+  Future<bool> loadCareItems() async {
+    final result = await _getCareItems();
+    switch (result) {
+      case Success(:final data):
+        careItems = data;
+        notifyListeners();
+        return true;
+      case Failure(:final message):
+        debugPrint('[HomeViewModel] 케어 버튼 로드 오류: $message');
+        return false;
+    }
+  }
+
+  /// 새 케어 버튼 등록 후 로컬 목록에 추가
+  Future<bool> addCareItem(CareItem item) async {
+    final result = await _addCareItem(item);
+    switch (result) {
+      case Success(:final data):
+        careItems = [...careItems, data];
+        notifyListeners();
+        return true;
+      case Failure(:final message):
+        return _fail(message);
+    }
+  }
+
+  /// 케어 버튼 삭제 (확인 다이얼로그 없음) — 기존 기록은 스냅샷으로 유지됨
+  Future<bool> deleteCareItem(String itemId) async {
+    final result = await _deleteCareItem(itemId);
+    if (result is Failure) return _fail(result.message);
+    careItems = careItems.where((i) => i.id != itemId).toList();
+    notifyListeners();
+    return true;
+  }
 
   List<String> _trimHistory(List<String> history, String today) {
     final updated = [...history];
     if (!updated.contains(today)) updated.add(today);
-    return updated.length > _historyLimit
-        ? updated.sublist(updated.length - _historyLimit)
-        : updated;
+    return CareHistoryLimits.trim(updated, CareHistoryLimits.watering);
+  }
+
+  // 중복 기준: 같은 날짜 + 같은 버튼. 한도는 서버와 동일 (비료/농약 각각)
+  List<CareRecord> _trimCareHistory(
+    List<CareRecord> history,
+    CareRecord record,
+    int limit,
+  ) {
+    final updated = [...history];
+    final exists = updated
+        .any((r) => r.date == record.date && r.itemId == record.itemId);
+    if (!exists) updated.add(record);
+    return CareHistoryLimits.trim(updated, limit);
   }
 
   /// 선택된 식물들에 물 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
@@ -246,44 +310,41 @@ class HomeViewModel extends ChangeNotifier {
     return true;
   }
 
-  /// 선택된 식물들에 비료 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
-  /// today: YYYY-MM-DD — 비료 기록과 함께 물 주기도 갱신
-  Future<bool> fertilizePlants(Set<String> plantIds, String today) async {
-    final results = await Future.wait(
-      plantIds.map((id) => _fertilizePlant(id, today)),
+  /// 선택된 식물들에 케어 버튼(비료/농약) 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
+  /// today: YYYY-MM-DD — 버튼의 관수 여부가 true면 물 주기도 함께 갱신
+  Future<bool> applyCareItem(
+      Set<String> plantIds, CareItem item, String today) async {
+    final record = CareRecord(
+      date: today,
+      itemId: item.id,
+      name: item.name,
+      cycle: item.cycleMemo,
     );
-    for (final result in results) {
-      if (result case Failure(:final message)) return _fail(message);
-    }
-    final waterIso = DateTime.now().toIso8601String();
-    plants = plants.map((p) {
-      if (!plantIds.contains(p.id)) return p;
-      return p.copyWith(
-        fertilizerHistory: _trimHistory(p.fertilizerHistory, today),
-        wateringHistory: _trimHistory(p.wateringHistory, today),
-        lastWatered: waterIso,
-      );
-    }).toList();
-    notifyListeners();
-    return true;
-  }
+    final isFertilizer = item.type == CareItemType.fertilizer;
 
-  /// 선택된 식물들에 농약 주기 병렬 기록 후 로컬 상태만 갱신 (네트워크 재조회 없음)
-  /// today: YYYY-MM-DD — 농약 기록과 함께 물 주기도 갱신
-  Future<bool> pesticidePlants(Set<String> plantIds, String today) async {
-    final results = await Future.wait(
-      plantIds.map((id) => _pesticidePlant(id, today)),
-    );
+    final results = await Future.wait(plantIds.map((id) => isFertilizer
+        ? _fertilizePlant(id, record, includeWatering: item.includeWatering)
+        : _pesticidePlant(id, record, includeWatering: item.includeWatering)));
     for (final result in results) {
       if (result case Failure(:final message)) return _fail(message);
     }
+
     final waterIso = DateTime.now().toIso8601String();
     plants = plants.map((p) {
       if (!plantIds.contains(p.id)) return p;
       return p.copyWith(
-        pesticideHistory: _trimHistory(p.pesticideHistory, today),
-        wateringHistory: _trimHistory(p.wateringHistory, today),
-        lastWatered: waterIso,
+        fertilizerHistory: isFertilizer
+            ? _trimCareHistory(
+                p.fertilizerHistory, record, CareHistoryLimits.fertilizer)
+            : null,
+        pesticideHistory: isFertilizer
+            ? null
+            : _trimCareHistory(
+                p.pesticideHistory, record, CareHistoryLimits.pesticide),
+        wateringHistory: item.includeWatering
+            ? _trimHistory(p.wateringHistory, today)
+            : null,
+        lastWatered: item.includeWatering ? waterIso : null,
       );
     }).toList();
     notifyListeners();

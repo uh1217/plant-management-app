@@ -5,12 +5,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:showcaseview/showcaseview.dart';
 
+import 'package:plantapp_p/domain/entities/care_item.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
+import 'package:plantapp_p/presentation/utils/care_display.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/views/input_screen.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
+import 'package:plantapp_p/presentation/widgets/care_button_sheet.dart';
 import 'package:plantapp_p/presentation/widgets/plant_list_card.dart';
 import 'package:plantapp_p/presentation/widgets/weather_recommendation_card.dart';
 
@@ -249,7 +252,8 @@ class _HomeScreenState extends State<HomeScreen> {
     await _requestInitialPermissions();
     await _vm.loadWeatherRecommendationSetting();
     await _vm.loadPlants();
-    // 식물 목록 로드 후 날씨 추천 카드 비동기 로드 (UI 블로킹 없음)
+    // 식물 목록 로드 후 케어 버튼·날씨 추천 카드 비동기 로드 (UI 블로킹 없음)
+    _vm.loadCareItems();
     _vm.loadWeatherRecommendation();
   }
 
@@ -284,18 +288,32 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedPlantIds.clear());
   }
 
-  Future<void> _handleFertilizeSelectedPlants() async {
-    final today = DateTime.now().toIso8601String().split('T')[0];
-    await _vm.fertilizePlants(_selectedPlantIds, today);
-    if (!mounted) return;
-    setState(() => _selectedPlantIds.clear());
-  }
+  /// 비료/농약 대표 버튼 → 바텀시트에서 케어 버튼 선택 → 선택된 식물들에 일괄 기록
+  Future<void> _openCareButtonSheet(CareItemType type) async {
+    final item = await showModalBottomSheet<CareItem>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => CareButtonSheet(viewModel: _vm, type: type),
+    );
+    if (item == null || !mounted) return;
 
-  Future<void> _handlePesticideSelectedPlants() async {
     final today = DateTime.now().toIso8601String().split('T')[0];
-    await _vm.pesticidePlants(_selectedPlantIds, today);
+    final ok = await _vm.applyCareItem(_selectedPlantIds, item, today);
     if (!mounted) return;
+    final count = _selectedPlantIds.length;
     setState(() => _selectedPlantIds.clear());
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              '${careLabel(item.name, item.cycleMemo)} — 식물 $count개에 기록했어요'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _selectCategory(String? category) {
@@ -861,7 +879,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   showcaseKey: _actionBtnsKey,
                   title: '카드 조작',
                   description:
-                      '카드 탭: 체크 선택  ·  선택 후 물방울: 물주기 기록\n선택 후 새싹: 비료 기록  ·  선택 후 벌레: 농약 기록',
+                      '카드 탭: 체크 선택  ·  선택 후 물방울: 물주기 기록\n선택 후 새싹/벌레: 비료·농약 버튼 목록에서 선택해 기록',
                   buttonName: '다음',
                   child: Row(
                     children: [
@@ -870,7 +888,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: AppColors.yellow200,
                         onPressed: _selectedPlantIds.isEmpty
                             ? null
-                            : _handlePesticideSelectedPlants,
+                            : () =>
+                                _openCareButtonSheet(CareItemType.pesticide),
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(
@@ -878,7 +897,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: AppColors.primaryGreen,
                         onPressed: _selectedPlantIds.isEmpty
                             ? null
-                            : _handleFertilizeSelectedPlants,
+                            : () =>
+                                _openCareButtonSheet(CareItemType.fertilizer),
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(

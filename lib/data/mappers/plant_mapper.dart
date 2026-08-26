@@ -1,3 +1,4 @@
+import 'package:plantapp_p/data/mappers/care_record_mapper.dart';
 import 'package:plantapp_p/data/models/plant_dto.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 
@@ -11,8 +12,10 @@ class PlantMapper {
         wateringFrequency: dto.wateringFrequency,
         lastWatered: dto.lastWatered,
         wateringHistory: dto.wateringHistory,
-        fertilizerHistory: dto.fertilizerHistory,
-        pesticideHistory: dto.pesticideHistory,
+        fertilizerHistory:
+            dto.fertilizerHistory.map(CareRecordMapper.toEntity).toList(),
+        pesticideHistory:
+            dto.pesticideHistory.map(CareRecordMapper.toEntity).toList(),
         notes: dto.notes,
       );
 
@@ -24,8 +27,10 @@ class PlantMapper {
         wateringFrequency: entity.wateringFrequency,
         lastWatered: entity.lastWatered,
         wateringHistory: entity.wateringHistory,
-        fertilizerHistory: entity.fertilizerHistory,
-        pesticideHistory: entity.pesticideHistory,
+        fertilizerHistory:
+            entity.fertilizerHistory.map(CareRecordMapper.toDto).toList(),
+        pesticideHistory:
+            entity.pesticideHistory.map(CareRecordMapper.toDto).toList(),
         notes: entity.notes,
       );
 }
