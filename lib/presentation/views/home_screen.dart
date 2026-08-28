@@ -38,6 +38,24 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── 사용자 가이드 ─────────────────────────────────────────────────────────
   late final ShowcaseView _showcaseView;
   int _guideStep = 0; // 0=비활성, 1~7=활성 단계
+  /// 카테고리가 없을 때 사이드바에만 그리는 가이드용 칩 (저장하지 않음)
+  bool _showGuideDemoCategories = false;
+  /// 식물 목록이 비었을 때 리스트에만 그리는 가이드용 카드 (저장하지 않음)
+  bool _showGuideDemoCard = false;
+
+  static const _guideDemoCategoryNames = ['관엽', '다육', '허브'];
+  static const _guideDemoPlant = Plant(
+    id: '__guide_demo__',
+    imageUrl: '',
+    name: '예시 식물',
+    categories: _guideDemoCategoryNames,
+    wateringFrequency: 7,
+    lastWatered: '2026-08-26',
+    wateringHistory: [],
+    fertilizerHistory: [],
+    pesticideHistory: [],
+    notes: '',
+  );
 
   // Phase 2: 사이드바 구역별 강조
   final GlobalKey _sidebarNavKey =
@@ -86,8 +104,15 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 사이드바 "사용 가이드" 탭 시 호출 — 입력 화면(Phase 1)부터 시작
   void startUserGuide() {
     if (!mounted) return;
+    _showGuideDemoCategories = false;
+    _showGuideDemoCard = false;
     _guideStep = 1;
     _openGuideInputScreen();
+  }
+
+  void _clearGuideDemos() {
+    _showGuideDemoCategories = false;
+    _showGuideDemoCard = false;
   }
 
   /// showcaseView.onComplete — 각 step 완료 시 호출
@@ -114,36 +139,35 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) _showcaseView.startShowCase([_sidebarFuncKey]);
       });
     } else if (_guideStep == 4) {
-      // 2-2 완료: 카테고리 섹션 강조 (2-3) — 카테고리 없으면 건너뜀
+      // 2-2 완료: 카테고리 섹션 강조 (2-3)
+      // 등록된 카테고리가 없으면 사이드바에만 예시 칩을 그림
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final hasCategories =
             _vm.plants.any((p) => p.categories.isNotEmpty);
-        if (hasCategories) {
-          _showcaseView.startShowCase([_sidebarCategoryKey]);
-        } else {
-          _guideStep = 5;
-          _advanceGuide();
-        }
-      });
-    } else if (_guideStep == 5) {
-      // 2-3 완료(또는 건너뜀): 사이드바 닫고 리스트 단계로 (3-1)
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        setState(() => _isSidebarOpen = false);
-        await Future.delayed(const Duration(milliseconds: 350));
-        if (!mounted) return;
-        if (_filteredPlants.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  '가이드 완료! 식물을 추가하면 카드 관리 기능을 이용할 수 있어요 🌱'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-          _guideStep = 0;
+        if (!hasCategories && !_showGuideDemoCategories) {
+          setState(() => _showGuideDemoCategories = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _showcaseView.startShowCase([_sidebarCategoryKey]);
+            }
+          });
           return;
         }
+        _showcaseView.startShowCase([_sidebarCategoryKey]);
+      });
+    } else if (_guideStep == 5) {
+      // 2-3 완료: 사이드바 닫고 리스트 단계로 (3-1)
+      // 식물이 없으면 리스트에만 예시 카드를 그림
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        setState(() {
+          _showGuideDemoCategories = false;
+          _isSidebarOpen = false;
+          if (_vm.plants.isEmpty) _showGuideDemoCard = true;
+        });
+        await Future.delayed(const Duration(milliseconds: 350));
+        if (!mounted) return;
         await Future.delayed(const Duration(milliseconds: 200));
         if (mounted) _showcaseView.startShowCase([_plantCardKey]);
       });
@@ -160,7 +184,9 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_guideStep == 8) {
       // 가이드 완료
       _guideStep = 0;
+      _clearGuideDemos();
       if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('가이드 완료! 사이드바에서 언제든 다시 볼 수 있어요 🎉'),
@@ -170,6 +196,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } else {
       _guideStep = 0;
+      _clearGuideDemos();
+      if (mounted) setState(() {});
     }
   }
 
@@ -290,15 +318,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// 비료/농약 대표 버튼 → 바텀시트에서 케어 버튼 선택 → 선택된 식물들에 일괄 기록
   Future<void> _openCareButtonSheet(CareItemType type) async {
-    final item = await showModalBottomSheet<CareItem>(
+    final result = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => CareButtonSheet(viewModel: _vm, type: type),
+      builder: (_) => CareButtonSheet(
+        viewModel: _vm,
+        type: type,
+        hasSelectedPlants: _selectedPlantIds.isNotEmpty,
+      ),
     );
-    if (item == null || !mounted) return;
+    if (!mounted) return;
+    if (result is CareButtonSheetNeedsSelection) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('비료/농약을 줄 식물을 선택해 주세요!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (result is! CareItem) return;
+    final item = result;
 
     final today = DateTime.now().toIso8601String().split('T')[0];
     final ok = await _vm.applyCareItem(_selectedPlantIds, item, today);
@@ -681,6 +724,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     guideNavSectionKey: _sidebarNavKey,
                     guideFuncSectionKey: _sidebarFuncKey,
                     guideCategoryListKey: _sidebarCategoryKey,
+                    guideDemoCategories: _showGuideDemoCategories
+                        ? _guideDemoCategoryNames
+                        : const [],
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
                       await _vm.signOut();
@@ -722,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (_filteredPlants.isEmpty) {
+    if (_filteredPlants.isEmpty && !_showGuideDemoCard) {
       final emptyMessage = _activeSearchQuery.isNotEmpty
           ? '검색 결과가 없습니다.'
           : _selectedDate != null
@@ -764,8 +810,15 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    final usingGuideDemoCard =
+        _showGuideDemoCard && _filteredPlants.isEmpty;
+    final listCount =
+        usingGuideDemoCard ? 1 : _filteredPlants.length;
+
     // 날씨 추천 카드 표시 조건: 전체 식물(카테고리·날짜·검색 없음) + 설정 ON
-    final showWeatherCard = _selectedCategory == null &&
+    // 가이드 예시 카드만 있을 때는 실제 식물이 없으므로 표시하지 않음
+    final showWeatherCard = !usingGuideDemoCard &&
+        _selectedCategory == null &&
         _selectedDate == null &&
         _activeSearchQuery.isEmpty &&
         _vm.weatherRecommendationEnabled &&
@@ -787,8 +840,10 @@ class _HomeScreenState extends State<HomeScreen> {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (_, index) {
-                final plant = _filteredPlants[index];
-                final card = PlantListCard(
+                final plant = usingGuideDemoCard
+                    ? _guideDemoPlant
+                    : _filteredPlants[index];
+                Widget card = PlantListCard(
                   plant: plant,
                   isSelected: _selectedPlantIds.contains(plant.id),
                   onSelect: () => setState(() {
@@ -805,6 +860,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   onDragEnded: () =>
                       setState(() => _isDragging = false),
                 );
+                if (usingGuideDemoCard) {
+                  card = AbsorbPointer(child: card);
+                }
                 if (index == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -828,7 +886,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: card,
                 );
               },
-              childCount: _filteredPlants.length,
+              childCount: listCount,
             ),
           ),
         ),
@@ -886,19 +944,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildActionButton(
                         icon: Icons.bug_report,
                         color: AppColors.yellow200,
-                        onPressed: _selectedPlantIds.isEmpty
-                            ? null
-                            : () =>
-                                _openCareButtonSheet(CareItemType.pesticide),
+                        looksDisabled: _selectedPlantIds.isEmpty,
+                        onPressed: () =>
+                            _openCareButtonSheet(CareItemType.pesticide),
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(
                         icon: Icons.eco,
                         color: AppColors.primaryGreen,
-                        onPressed: _selectedPlantIds.isEmpty
-                            ? null
-                            : () =>
-                                _openCareButtonSheet(CareItemType.fertilizer),
+                        looksDisabled: _selectedPlantIds.isEmpty,
+                        onPressed: () =>
+                            _openCareButtonSheet(CareItemType.fertilizer),
                       ),
                       const SizedBox(width: 8),
                       _buildActionButton(
@@ -923,13 +979,17 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required Color color,
     VoidCallback? onPressed,
+    bool looksDisabled = false,
   }) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
+        backgroundColor: looksDisabled ? color.withOpacity(0.5) : color,
+        foregroundColor: looksDisabled
+            ? Colors.white.withOpacity(0.38)
+            : Colors.white,
         disabledBackgroundColor: color.withOpacity(0.5),
+        disabledForegroundColor: Colors.white.withOpacity(0.38),
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         minimumSize: const Size(40, 36),

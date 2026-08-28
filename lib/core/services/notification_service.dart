@@ -77,7 +77,7 @@ class NotificationService {
     // flutter_local_notifications 20.x: zonedSchedule은 named parameter 방식
     await _plugin.zonedSchedule(
       id: _notifId,
-      title: '식물 관리 앱',
+      title: '배춧잎',
       body: '오늘 식물에 물 줄 시간이에요! 💧',
       scheduledDate: _nextAlarmTime(hour24, minute),
       notificationDetails: const NotificationDetails(

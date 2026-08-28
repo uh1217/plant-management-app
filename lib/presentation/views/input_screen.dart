@@ -252,7 +252,7 @@ class _InputScreenState extends State<InputScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '식물 관리 앱 (Plant Management App)',
+                        '배춧잎',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,

@@ -143,17 +143,22 @@ class _WeatherRecommendationSettingsDialogState
           child: Text('취소', style: TextStyle(color: outline)),
         ),
         FilledButton(
-          onPressed: () async {
-            await widget.viewModel
-                .setWeatherRecommendationEnabled(_enabled);
-            if (_selectedCity != null &&
-                _selectedCity != widget.viewModel.selectedCity) {
-              // 도시가 바뀌었으면 setCity가 캐시 무효화 + 재로드를 처리
-              await widget.viewModel.setCity(_selectedCity!);
-            } else if (_enabled) {
-              await widget.viewModel.loadWeatherRecommendation();
-            }
-            if (context.mounted) Navigator.pop(context);
+          onPressed: () {
+            final enabled = _enabled;
+            final city = _selectedCity;
+            final viewModel = widget.viewModel;
+            final cityChanged =
+                city != null && city != viewModel.selectedCity;
+            Navigator.pop(context);
+            Future(() async {
+              await viewModel.setWeatherRecommendationEnabled(enabled);
+              if (cityChanged) {
+                // 도시가 바뀌었으면 setCity가 캐시 무효화 + 재로드를 처리
+                await viewModel.setCity(city);
+              } else if (enabled) {
+                await viewModel.loadWeatherRecommendation();
+              }
+            });
           },
           style: FilledButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
@@ -367,7 +372,7 @@ void showAppInfo(BuildContext context) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '식물 관리 앱',
+                  '배춧잎',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
@@ -414,7 +419,7 @@ void showAppInfo(BuildContext context) {
             Navigator.pop(dialogContext);
             showLicensePage(
               context: context,
-              applicationName: '식물 관리 앱',
+              applicationName: '배춧잎',
               applicationVersion: AppVersion.instance.label,
               applicationIcon: _appInfoIcon(size: 40),
             );
@@ -435,7 +440,7 @@ Future<void> sendAppEmail(BuildContext context) async {
     scheme: 'mailto',
     path: 'yoohyun031217@gmail.com',
     query:
-        'subject=[식물 관리 앱 문의]&body=문의 내용을 작성해 주세요.(휴대폰 기종 정보와 에러 상황에 대한 자세한 설명이 포함되면 더욱 구체적인 답변이 가능합니다!)',
+        'subject=[배춧잎 문의]&body=문의 내용을 작성해 주세요.(휴대폰 기종 정보와 에러 상황에 대한 자세한 설명이 포함되면 더욱 구체적인 답변이 가능합니다!)',
   );
   try {
     if (await canLaunchUrl(uri)) {
@@ -486,6 +491,7 @@ class AppSidebar extends StatefulWidget {
     this.guideNavSectionKey,
     this.guideFuncSectionKey,
     this.guideCategoryListKey,
+    this.guideDemoCategories = const [],
   });
 
   final HomeViewModel viewModel;
@@ -522,6 +528,10 @@ class AppSidebar extends StatefulWidget {
 
   /// 사용 가이드 spotlight 키 — 카테고리 목록 강조용
   final GlobalKey? guideCategoryListKey;
+
+  /// 사용 가이드: 등록된 카테고리가 없을 때 사이드바에만 표시하는 예시 이름
+  /// (식물 데이터에 넣지 않음)
+  final List<String> guideDemoCategories;
 
   @override
   State<AppSidebar> createState() => _AppSidebarState();
@@ -754,7 +764,8 @@ class _AppSidebarState extends State<AppSidebar> {
                           _wrapWithShowcase(
                             showcaseKey: widget.guideNavSectionKey,
                             title: '화면 이동',
-                            description: '입력·전체 식물·날짜 검색 화면으로 이동합니다',
+                            description:
+                                '입력 화면에서 식물을 등록 할 수 있고, 전체 식물. 날짜. 검색 기능을 통해 원하는 식물 리스트를 볼 수 있어요',
                             child: Column(
                               children: [
                                 _buildMenuItem(
@@ -805,7 +816,8 @@ class _AppSidebarState extends State<AppSidebar> {
                           _wrapWithShowcase(
                             showcaseKey: widget.guideFuncSectionKey,
                             title: '기능 메뉴',
-                            description: 'AI 챗봇·설정·가이드·로그아웃 기능을 사용할 수 있어요',
+                            description:
+                                'AI 챗봇·설정·가이드·로그아웃 기능을 사용할 수 있어요\n설정 항목에서는 날씨 정보 on/off, 테마 선택, 알람 설정을 사용할 수 있어요',
                             child: Column(
                               children: [
                                 _buildAgentMenuItem(context),
@@ -873,11 +885,12 @@ class _AppSidebarState extends State<AppSidebar> {
                         ),
 
                         // ── 카테고리 목록 ──────────────────────
-                        if (_allCategories.isNotEmpty)
+                        if (_allCategories.isNotEmpty ||
+                            widget.guideDemoCategories.isNotEmpty)
                           _wrapWithShowcase(
                             showcaseKey: widget.guideCategoryListKey,
                             title: '카테고리',
-                            description: '카테고리별로 식물을 필터링할 수 있어요',
+                            description: '등록된 식물들을 카테고리별로 필터링할 수 있어요',
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -901,6 +914,17 @@ class _AppSidebarState extends State<AppSidebar> {
                                 ),
                                 ..._allCategories
                                     .map((cat) => _buildCategoryItem(cat)),
+                                if (_allCategories.isEmpty)
+                                  AbsorbPointer(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: widget.guideDemoCategories
+                                          .map((cat) =>
+                                              _buildCategoryItem(cat))
+                                          .toList(),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -962,6 +986,18 @@ class _AppSidebarState extends State<AppSidebar> {
       description: description,
       tooltipBackgroundColor: Colors.white,
       textColor: Colors.black87,
+      titleTextStyle: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: Colors.black87,
+        height: 1.3,
+      ),
+      descTextStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: Colors.black87,
+        height: 1.55,
+      ),
       tooltipActions: const [
         TooltipActionButton(
           type: TooltipDefaultActionType.next,

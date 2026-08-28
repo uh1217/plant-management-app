@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    '식물 관리 앱',
+                    '배춧잎',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,

@@ -63,7 +63,7 @@ class PlantManagerApp extends StatelessWidget {
       valueListenable: AppTheme.themeNotifier,
       builder: (context, AppThemeType currentTheme, child) {
         return MaterialApp(
-          title: 'Plant App',
+          title: '배춧잎',
           theme: AppTheme.getTheme(currentTheme),
           themeMode: ThemeMode.light,
           home: const _AuthGate(),

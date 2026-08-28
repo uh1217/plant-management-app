@@ -357,7 +357,7 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
               ),
               child: const Text(
                 '안녕하세요! 🌿\n저는 스마트 원예 진단 에이전트입니다.\n\n텍스트로 질문하거나 식물 사진을 첨부하시면 진단 및 관리 팁을 알려드릴게요!\n\n⚠️ AI는 여러분의 식물의 모든 정보를 정확히 파악할 수 없습니다. 해당 기능은 단순 도움을 드릴 뿐 최종 판단은 직접 하시길 권합니다.',
-                style: TextStyle(fontSize: 13.5, height: 1.5),
+                style: TextStyle(fontSize: 12, height: 1.2),
               ),
             ),
           ),
@@ -424,8 +424,8 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
                     child: Text(
                       msg.text,
                       style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.5,
+                        fontSize: 12,
+                        height: 1.2,
                         color: isUser ? Colors.white : colorScheme.onSurface,
                       ),
                     ),

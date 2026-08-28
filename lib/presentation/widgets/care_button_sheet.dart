@@ -4,8 +4,14 @@ import 'package:plantapp_p/domain/entities/care_item.dart';
 import 'package:plantapp_p/presentation/utils/care_display.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 
+/// 등록된 케어 버튼을 탭했지만 선택된 식물이 없을 때 시트가 반환하는 결과
+class CareButtonSheetNeedsSelection {
+  const CareButtonSheetNeedsSelection();
+}
+
 /// 비료/농약 케어 버튼 바텀시트
 /// - 등록된 버튼 목록: 탭 → 해당 CareItem을 결과로 반환 (호출부에서 일괄 기록)
+/// - 선택된 식물이 없으면 목록은 비활성처럼 보이고, 탭 시 [CareButtonSheetNeedsSelection] 반환
 /// - 버튼 추가: 시트 내 폼 전환 (이름·색·주기 메모·관수 여부)
 /// - 버튼 삭제: 삭제 아이콘 탭 시 즉시 삭제 (기존 기록은 유지)
 class CareButtonSheet extends StatefulWidget {
@@ -13,10 +19,12 @@ class CareButtonSheet extends StatefulWidget {
     super.key,
     required this.viewModel,
     required this.type,
+    this.hasSelectedPlants = true,
   });
 
   final HomeViewModel viewModel;
   final CareItemType type;
+  final bool hasSelectedPlants;
 
   @override
   State<CareButtonSheet> createState() => _CareButtonSheetState();
@@ -172,30 +180,45 @@ class _CareButtonSheetState extends State<CareButtonSheet> {
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final item = items[index];
+                final canApply = widget.hasSelectedPlants;
                 return InkWell(
                   borderRadius: BorderRadius.circular(10),
                   // 버튼 탭 → 시트 닫고 선택된 식물들에 일괄 기록 (호출부 처리)
-                  onTap: () => Navigator.pop(context, item),
+                  // 선택 식물이 없으면 안내 후 닫힘
+                  onTap: () => Navigator.pop(
+                    context,
+                    canApply
+                        ? item
+                        : const CareButtonSheetNeedsSelection(),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 4, vertical: 4),
                     child: Row(
                       children: [
-                        Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: Color(item.color),
-                            shape: BoxShape.circle,
+                        Opacity(
+                          opacity: canApply ? 1 : 0.38,
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Color(item.color),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             careLabel(item.name, item.cycleMemo),
                             style: TextStyle(
                               fontSize: 15,
-                              color: colorScheme.onSurface,
+                              color: colorScheme.onSurface
+                                  .withOpacity(canApply ? 1 : 0.38),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -207,7 +230,8 @@ class _CareButtonSheetState extends State<CareButtonSheet> {
                             child: Icon(
                               Icons.format_color_reset_outlined,
                               size: 16,
-                              color: colorScheme.onSurface.withOpacity(0.35),
+                              color: colorScheme.onSurface.withOpacity(
+                                  canApply ? 0.35 : 0.2),
                             ),
                           ),
                         IconButton(
