@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:plantapp_p/core/di/service_locator.dart';
 import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/domain/entities/gallery_photo.dart';
@@ -63,14 +61,7 @@ class _PlantGalleryDialogState extends State<PlantGalleryDialog> {
   Future<void> _addPhoto() async {
     if (_photos.length >= _kMaxPhotos || _isUploading) return;
 
-    final status = await Permission.photos.request();
-    if (!status.isGranted && !status.isLimited) {
-      if (mounted) showPermissionRequestDialog(context);
-      return;
-    }
-
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery);
+    final xFile = await pickGalleryImage();
     if (xFile == null || !mounted) return;
 
     setState(() => _isUploading = true);

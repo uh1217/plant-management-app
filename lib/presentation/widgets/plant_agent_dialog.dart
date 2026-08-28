@@ -79,6 +79,7 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
+      requestFullMetadata: false,
     );
     if (file == null || !mounted) return;
     final bytes = await file.readAsBytes();

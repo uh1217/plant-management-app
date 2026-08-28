@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/care_item.dart';
@@ -277,7 +275,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeApp() async {
-    await _requestInitialPermissions();
     await _vm.loadWeatherRecommendationSetting();
     await _vm.loadPlants();
     // 식물 목록 로드 후 케어 버튼·날씨 추천 카드 비동기 로드 (UI 블로킹 없음)
@@ -375,26 +372,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _activeSearchQuery = '';
       _isSidebarOpen = false;
     });
-  }
-
-  // ── Permissions ───────────────────────────────────────────────────────────
-
-  Future<void> _requestInitialPermissions() async {
-    final photosStatus = await Permission.photos.status;
-    final storageStatus = await Permission.storage.status;
-    if (photosStatus.isGranted ||
-        photosStatus.isLimited ||
-        storageStatus.isGranted) {
-      return;
-    }
-    final statuses =
-        await [Permission.photos, Permission.storage].request();
-    final np = statuses[Permission.photos];
-    final ns = statuses[Permission.storage];
-    if (np != null && np.isPermanentlyDenied ||
-        ns != null && ns.isPermanentlyDenied) {
-      debugPrint('갤러리 권한 거부됨. 설정에서 허용해 주세요.');
-    }
   }
 
   // ── Computed Getters ──────────────────────────────────────────────────────
@@ -1053,13 +1030,7 @@ class _EditPlantFormContentState
   }
 
   Future<void> _pickImage() async {
-    final status = await Permission.photos.request();
-    if (!status.isGranted && !status.isLimited) {
-      if (mounted) showPermissionRequestDialog(context);
-      return;
-    }
-    final picker = ImagePicker();
-    final xFile = await picker.pickImage(source: ImageSource.gallery);
+    final xFile = await pickGalleryImage();
     if (xFile == null || !mounted) return;
 
     setState(() => _isUploading = true);
