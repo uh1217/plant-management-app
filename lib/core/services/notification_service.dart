@@ -25,9 +25,12 @@ class NotificationService {
     tz_data.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
 
-    // 알림 아이콘으로 앱 런처 아이콘(@mipmap/ic_launcher) 사용
+    // 알림 아이콘으로 앱 런처 아이콘(@mipmap/launcher_icon) 사용.
+    // 주의: 반드시 AndroidManifest.xml의 android:icon과 같은 리소스를 써야 한다.
+    // Dart 문자열로만 참조되는 리소스는 릴리즈 빌드의 리소스 축소(shrinkResources)가
+    // 제거해 버려서 앱이 스플래시 화면에서 멈추는 원인이 된다.
     const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('@mipmap/launcher_icon');
 
     // iOS: 앱 시작 시 알림 권한 팝업을 표시하고 배지·소리·배너를 허용 요청
     const iosSettings = DarwinInitializationSettings(

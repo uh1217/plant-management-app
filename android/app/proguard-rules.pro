@@ -28,3 +28,9 @@
 # 알림 및 알람 라이브러리 보호
 -keep class com.dexterous.flutterlocalnotifications.** { *; }
 -keep class com.baseflow.permissionhandler.** { *; }
+
+# flutter_local_notifications가 내부적으로 쓰는 Gson의 제네릭 타입 정보 보호
+# (R8이 Signature를 제거하면 알람 예약 시 "Missing type parameter" 크래시 발생)
+-keepattributes Signature
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
