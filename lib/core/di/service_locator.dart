@@ -3,6 +3,7 @@ import 'package:plantapp_p/data/datasources/care_item_remote_datasource.dart';
 import 'package:plantapp_p/data/datasources/city_datasource.dart';
 import 'package:plantapp_p/data/datasources/gemini_datasource.dart';
 import 'package:plantapp_p/data/datasources/plant_remote_datasource.dart';
+import 'package:plantapp_p/data/datasources/user_remote_datasource.dart';
 import 'package:plantapp_p/data/datasources/weather_remote_datasource.dart';
 import 'package:plantapp_p/data/repositories_impl/auth_repository_impl.dart';
 import 'package:plantapp_p/data/repositories_impl/care_item_repository_impl.dart';
@@ -17,6 +18,7 @@ import 'package:plantapp_p/domain/repositories/plant_repository.dart';
 import 'package:plantapp_p/domain/repositories/chat_repository.dart';
 import 'package:plantapp_p/domain/repositories/weather_repository.dart';
 import 'package:plantapp_p/domain/usecases/add_care_item_usecase.dart';
+import 'package:plantapp_p/domain/usecases/delete_account_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_care_item_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_care_items_usecase.dart';
@@ -63,6 +65,7 @@ class ServiceLocator {
   late final SignInWithGoogleUseCase signInWithGoogleUseCase;
   late final SignInWithAppleUseCase signInWithAppleUseCase;
   late final SignOutUseCase signOutUseCase;
+  late final DeleteAccountUseCase deleteAccountUseCase;
   late final SendMessageUseCase sendMessageUseCase;
   late final GetWeatherRecommendationUseCase getWeatherRecommendationUseCase;
   late final GetGalleryPhotosUseCase getGalleryPhotosUseCase;
@@ -74,6 +77,7 @@ class ServiceLocator {
     final plantDs = PlantRemoteDataSource();
     final careItemDs = CareItemRemoteDataSource();
     final authDs = AuthRemoteDataSource();
+    final userDs = UserRemoteDataSource();
     cityDataSource = CityDataSource();
     weatherDataSource = WeatherRemoteDataSource();
     geminiService = GeminiService()..init(); // Firebase 초기화 이후 실행
@@ -83,7 +87,7 @@ class ServiceLocator {
     // RepositoryImpl 에 주입
     plantRepository = PlantRepositoryImpl(plantDs);
     careItemRepository = CareItemRepositoryImpl(careItemDs);
-    authRepository = AuthRepositoryImpl(authDs);
+    authRepository = AuthRepositoryImpl(authDs, userDs);
     chatRepository = ChatRepositoryImpl(geminiDs);
     weatherRepository = WeatherRepositoryImpl(weatherDataSource);
 
@@ -100,6 +104,7 @@ class ServiceLocator {
     signInWithGoogleUseCase = SignInWithGoogleUseCase(authRepository);
     signInWithAppleUseCase = SignInWithAppleUseCase(authRepository);
     signOutUseCase = SignOutUseCase(authRepository);
+    deleteAccountUseCase = DeleteAccountUseCase(authRepository);
     sendMessageUseCase = SendMessageUseCase(chatRepository);
     getWeatherRecommendationUseCase = GetWeatherRecommendationUseCase(
       city: cityDataSource,
@@ -122,6 +127,7 @@ class ServiceLocator {
         addCareItem: addCareItemUseCase,
         deleteCareItem: deleteCareItemUseCase,
         signOut: signOutUseCase,
+        deleteAccount: deleteAccountUseCase,
         geminiService: geminiService,
         getWeatherRecommendation: getWeatherRecommendationUseCase,
         cityDataSource: cityDataSource,

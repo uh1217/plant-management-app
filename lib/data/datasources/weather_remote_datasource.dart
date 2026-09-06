@@ -1,18 +1,18 @@
 import 'dart:convert';
 
+import 'package:cloud_functions/cloud_functions.dart' hide Result;
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:plantapp_p/core/result/result.dart';
 import 'package:plantapp_p/data/models/weather_forecast_dto.dart';
 import 'package:plantapp_p/domain/entities/weather_forecast.dart';
 
-/// Firebase Cloud Functions를 통해 날씨 예보를 가져오는 데이터 소스
+/// Firebase Cloud Functions(callable)를 통해 날씨 예보를 가져오는 데이터 소스
 ///
 /// OWM API 키는 서버(Secret Manager)에만 보관되며 앱 코드에는 포함되지 않는다.
+/// callable 호출에는 App Check 토큰이 자동 첨부되어, 서버(enforceAppCheck)가
+/// 정식 앱 외의 요청을 거부한다.
 /// 슬롯 기반 메모리 캐시를 적용해 슬롯 경계(06:00/18:00) 전까지 재조회를 생략한다.
 class WeatherRemoteDataSource {
-  static const String _functionsBaseUrl =
-      'https://asia-northeast3-plant-management-app-db.cloudfunctions.net/getWeatherForecast';
 
   WeatherForecast? _cachedForecast;
   RecommendationSlot? _cachedSlot;
@@ -41,19 +41,15 @@ class WeatherRemoteDataSource {
     }
 
     try {
-      final uri = Uri.parse(
-        '$_functionsBaseUrl?lat=$lat&lon=$lon',
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-northeast3')
+          .httpsCallable(
+        'getWeatherForecast',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 15)),
       );
-      final response = await http.get(uri).timeout(const Duration(seconds: 15));
+      final result =
+          await callable.call<String>({'lat': lat, 'lon': lon});
 
-      if (response.statusCode == 429) {
-        return const Failure(error: 'rate_limit', message: '날씨 API 요청 한도를 초과했습니다. (HTTP 429)');
-      }
-      if (response.statusCode != 200) {
-        return Failure(error: 'http_error_${response.statusCode}', message: '날씨 API 오류: HTTP ${response.statusCode}');
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      final json = jsonDecode(result.data) as Map<String, dynamic>;
       final list = json['list'] as List<dynamic>;
 
       // 대상 날짜 결정 (오전=오늘, 오후=내일)
@@ -91,6 +87,14 @@ class WeatherRemoteDataSource {
       debugPrint(
           '[WeatherRemoteDataSource] 날씨 취득: ${forecast.weatherCondition}, ${forecast.maxTemp}°C, 습도 ${forecast.avgHumidity}%');
       return Success(forecast);
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('[WeatherRemoteDataSource] Functions 오류: ${e.code} ${e.message}');
+      if (e.code == 'resource-exhausted') {
+        return const Failure(
+            error: 'rate_limit', message: '날씨 API 요청 한도를 초과했습니다.');
+      }
+      return Failure(
+          error: 'functions_${e.code}', message: '날씨 API 오류: ${e.code}');
     } catch (e) {
       debugPrint('[WeatherRemoteDataSource] 오류: $e');
       return Failure(error: e, message: '날씨 정보를 가져올 수 없습니다.');

@@ -11,6 +11,7 @@ import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
+import 'package:plantapp_p/presentation/widgets/delete_account_dialog.dart';
 
 class InputScreen extends StatefulWidget {
   const InputScreen({
@@ -194,6 +195,10 @@ class _InputScreenState extends State<InputScreen> {
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
                       await widget.viewModel.signOut();
+                    },
+                    onDeleteAccount: () {
+                      setState(() => _isSidebarOpen = false);
+                      showDeleteAccountDialog(context, widget.viewModel);
                     },
                     onContactEmail: () => sendAppEmail(context),
                     onAppInfo: () => showAppInfo(context),

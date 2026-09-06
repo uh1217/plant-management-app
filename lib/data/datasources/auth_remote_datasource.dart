@@ -69,9 +69,16 @@ class AuthRemoteDataSource {
 
   //파이어베이스 뿐 아니라 구글 로그인 세션까지 완전히 연결 끊어버림
   Future<void> signOut() async {
-    await _ensureInitialized();
-    // disconnect는 계정 연결 해제로 재동의 팝업을 유발할 수 있어 signOut만 사용
-    await _googleSignIn.signOut();
+    // iOS(Apple 로그인 전용)처럼 Google 클라이언트가 설정되지 않은 환경에서는
+    // initialize가 실패할 수 있으므로, Google 로그아웃 실패가
+    // Firebase 로그아웃까지 막지 않도록 분리한다
+    try {
+      await _ensureInitialized();
+      // disconnect는 계정 연결 해제로 재동의 팝업을 유발할 수 있어 signOut만 사용
+      await _googleSignIn.signOut();
+    } catch (e) {
+      debugPrint('[Auth] Google signOut 건너뜀: $e');
+    }
     await _auth.signOut();
   }
 
@@ -81,11 +88,28 @@ class AuthRemoteDataSource {
   ///   - SHA-256 해시 → Apple에 전달
   /// Apple은 응답 토큰에 해시를 포함시켜 반환 → Firebase가 원본으로 검증
   Future<String> signInWithApple() async {
-    // ① 보안용 랜덤 nonce 생성
+    // ① Apple 인증 → Firebase Credential 생성 (재인증과 공용 헬퍼)
+    final (appleCredential, oauthCredential) = await _getAppleOAuthCredential();
+
+    // ② Firebase 로그인 → uid 반환
+    final userCredential = await _auth.signInWithCredential(oauthCredential);
+    final user = userCredential.user;
+    if (user == null) {
+      throw StateError('Firebase user is null after Apple sign-in');
+    }
+
+    // ③ Apple은 "최초 로그인 딱 한 번"만 이름을 제공 → 이때 저장하지 않으면 영구 유실
+    await _saveAppleDisplayNameIfNeeded(user, appleCredential);
+    return user.uid;
+  }
+
+  /// Apple 인증 창을 띄우고 (Apple 원본 응답, Firebase용 Credential) 쌍을 반환.
+  /// 로그인과 탈퇴 전 재인증에서 공용으로 사용한다.
+  Future<(AuthorizationCredentialAppleID, OAuthCredential)>
+      _getAppleOAuthCredential() async {
     final rawNonce = _generateNonce();
     final hashedNonce = _sha256ofString(rawNonce);
 
-    // ② Apple에 인증 요청 (해시된 nonce 전달)
     // 최초 로그인 시에만 email·fullName이 제공됨, 이후 null
     final appleCredential = await SignInWithApple.getAppleIDCredential(
       scopes: [
@@ -95,19 +119,105 @@ class AuthRemoteDataSource {
       nonce: hashedNonce,
     );
 
-    // ③ Apple 응답 토큰 + 원본 nonce로 Firebase OAuthCredential 생성
+    final idToken = appleCredential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError(
+        'Apple identityToken이 비어 있습니다. Xcode의 Sign in with Apple '
+        'capability와 Firebase Apple 로그인 설정을 확인하세요.',
+      );
+    }
+
     final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
+      idToken: idToken,
       rawNonce: rawNonce,
     );
+    return (appleCredential, oauthCredential);
+  }
 
-    // ④ Firebase 로그인 → uid 반환
-    final userCredential = await _auth.signInWithCredential(oauthCredential);
-    final uid = userCredential.user?.uid;
-    if (uid == null) {
-      throw StateError('Firebase user is null after Apple sign-in');
+  /// Firebase displayName이 비어 있고 Apple이 이름을 준 경우에만 저장.
+  /// 이름 저장 실패가 로그인 실패로 번지지 않도록 예외는 삼킨다.
+  Future<void> _saveAppleDisplayNameIfNeeded(
+    User user,
+    AuthorizationCredentialAppleID appleCredential,
+  ) async {
+    final current = user.displayName;
+    if (current != null && current.isNotEmpty) return;
+
+    // 한국어 이름 관례(성+이름)와 무관하게 Apple이 준 순서대로 조합
+    final name = [appleCredential.givenName, appleCredential.familyName]
+        .whereType<String>()
+        .where((part) => part.trim().isNotEmpty)
+        .join(' ')
+        .trim();
+    if (name.isEmpty) return;
+
+    try {
+      await user.updateDisplayName(name);
+    } catch (e) {
+      debugPrint('[Auth] displayName 저장 실패(무시): $e');
     }
-    return uid;
+  }
+
+  // ── 회원 탈퇴 ────────────────────────────────────────────────────────────────
+
+  /// 탈퇴 1단계: 재인증 (Firebase는 계정 삭제 전 최근 로그인 이력을 요구)
+  /// Apple 계정이면 토큰 취소(revoke)에 필요한 authorizationCode를 반환한다.
+  /// authorizationCode는 발급 후 5분만 유효하므로 탈퇴 직전에 새로 받아야 한다.
+  Future<String?> reauthenticateForDelete() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('로그인된 사용자가 없습니다.');
+    }
+
+    final isAppleUser =
+        user.providerData.any((p) => p.providerId == 'apple.com');
+
+    if (isAppleUser) {
+      final (appleCredential, oauthCredential) =
+          await _getAppleOAuthCredential();
+      await user.reauthenticateWithCredential(oauthCredential);
+      return appleCredential.authorizationCode;
+    }
+
+    // Google 계정 재인증
+    await _ensureInitialized();
+    final googleUser = await _googleSignIn.authenticate();
+    final idToken = googleUser.authentication.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Google idToken이 비어 있습니다.');
+    }
+    await user.reauthenticateWithCredential(
+      GoogleAuthProvider.credential(idToken: idToken),
+    );
+    return null;
+  }
+
+  /// 탈퇴 마지막 단계: (Apple) 토큰 취소 → Auth 계정 삭제 → 로컬 세션 정리
+  /// 반드시 재인증·사용자 데이터 삭제가 끝난 뒤 호출해야 한다.
+  /// (계정 삭제 후에는 Firestore 보안 규칙 때문에 데이터에 접근할 수 없음)
+  Future<void> deleteAuthUser({String? appleAuthorizationCode}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('로그인된 사용자가 없습니다.');
+    }
+
+    // Apple 심사 요건: 탈퇴 시 Sign in with Apple 토큰 취소
+    // 취소 실패가 탈퇴 자체를 막지 않도록 로그만 남긴다
+    if (appleAuthorizationCode != null) {
+      try {
+        await _auth.revokeTokenWithAuthorizationCode(appleAuthorizationCode);
+      } catch (e) {
+        debugPrint('[Auth] Apple 토큰 revoke 실패(무시): $e');
+      }
+    }
+
+    await user.delete();
+
+    // Google 로그인 세션 잔여물 정리 (Apple 사용자·미설정 환경에서는 실패해도 무시)
+    try {
+      await _ensureInitialized();
+      await _googleSignIn.signOut();
+    } catch (_) {}
   }
 
   // ── nonce 헬퍼 ──────────────────────────────────────────────────────────────

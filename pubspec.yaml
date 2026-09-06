@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.4.10+26
+version: 2.5.0+27
 
 environment:
   sdk: ^3.10.3
@@ -54,6 +54,7 @@ dependencies:
   http: ^1.2.0
   showcaseview: ^5.0.2
   package_info_plus: ^8.3.0
+  cloud_functions: ^6.4.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   #cupertino_icons: ^1.0.8
@@ -73,6 +74,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
+  remove_alpha_ios: true
   image_path: "assets/images/PlantApp_Icon.png"
 
 # For information on the generic Dart part of this file, see the

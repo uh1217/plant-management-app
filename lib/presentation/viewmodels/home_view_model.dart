@@ -10,6 +10,7 @@ import 'package:plantapp_p/domain/entities/care_item.dart';
 import 'package:plantapp_p/domain/entities/care_record.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/domain/usecases/add_care_item_usecase.dart';
+import 'package:plantapp_p/domain/usecases/delete_account_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_care_item_usecase.dart';
 import 'package:plantapp_p/domain/usecases/delete_plant_usecase.dart';
 import 'package:plantapp_p/domain/usecases/fertilize_plant_usecase.dart';
@@ -45,6 +46,7 @@ class HomeViewModel extends ChangeNotifier {
     required AddCareItemUseCase addCareItem,
     required DeleteCareItemUseCase deleteCareItem,
     required SignOutUseCase signOut,
+    required DeleteAccountUseCase deleteAccount,
     required GeminiService geminiService,
     required GetWeatherRecommendationUseCase getWeatherRecommendation,
     required CityDataSource cityDataSource,
@@ -59,6 +61,7 @@ class HomeViewModel extends ChangeNotifier {
         _addCareItem = addCareItem,
         _deleteCareItem = deleteCareItem,
         _signOut = signOut,
+        _deleteAccount = deleteAccount,
         _geminiService = geminiService,
         _getWeatherRecommendation = getWeatherRecommendation,
         _cityDataSource = cityDataSource,
@@ -74,6 +77,7 @@ class HomeViewModel extends ChangeNotifier {
   final AddCareItemUseCase _addCareItem;
   final DeleteCareItemUseCase _deleteCareItem;
   final SignOutUseCase _signOut;
+  final DeleteAccountUseCase _deleteAccount;
   final GeminiService _geminiService;
   final GetWeatherRecommendationUseCase _getWeatherRecommendation;
   final CityDataSource _cityDataSource;
@@ -354,6 +358,16 @@ class HomeViewModel extends ChangeNotifier {
   /// Firebase + Google 세션 동시 로그아웃
   Future<bool> signOut() async {
     final result = await _signOut();
+    return switch (result) {
+      Success() => true,
+      Failure(:final message) => _fail(message),
+    };
+  }
+
+  /// 회원 탈퇴: 재인증 → 데이터 삭제 → 계정 삭제
+  /// 성공 시 authStateChanges 스트림이 자동으로 로그인 화면 전환을 처리한다
+  Future<bool> deleteAccount() async {
+    final result = await _deleteAccount();
     return switch (result) {
       Success() => true,
       Failure(:final message) => _fail(message),

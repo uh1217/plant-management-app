@@ -33,7 +33,7 @@ class CareButtonSheet extends StatefulWidget {
 class _CareButtonSheetState extends State<CareButtonSheet> {
   static const _palette = <Color>[
     Color(0xFF22C55E), // green
-    Color(0xFF16A34A), // dark green
+    Color(0xFFFFFFFF), // white
     Color(0xFF3B82F6), // blue
     Color(0xFF8B5CF6), // violet
     Color(0xFFEC4899), // pink
@@ -42,6 +42,7 @@ class _CareButtonSheetState extends State<CareButtonSheet> {
     Color(0xFFF9D48A), // light yellow
     Color(0xFF92400E), // brown
     Color(0xFF6B7280), // gray
+    Color(0xFF000000), // black
   ];
 
   bool _showAddForm = false;
@@ -316,6 +317,9 @@ class _CareButtonSheetState extends State<CareButtonSheet> {
           runSpacing: 10,
           children: _palette.map((color) {
             final isSelected = color.value == _selectedColor.value;
+            final isWhite = color.value == Colors.white.value;
+            final checkColor =
+                color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
             return GestureDetector(
               onTap: () => setState(() => _selectedColor = color),
               child: Container(
@@ -326,10 +330,12 @@ class _CareButtonSheetState extends State<CareButtonSheet> {
                   shape: BoxShape.circle,
                   border: isSelected
                       ? Border.all(color: colorScheme.onSurface, width: 2.5)
+                      : isWhite
+                      ? Border.all(color: colorScheme.outlineVariant)
                       : null,
                 ),
                 child: isSelected
-                    ? const Icon(Icons.check, size: 18, color: Colors.white)
+                    ? Icon(Icons.check, size: 18, color: checkColor)
                     : null,
               ),
             );

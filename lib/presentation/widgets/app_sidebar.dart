@@ -479,6 +479,7 @@ class AppSidebar extends StatefulWidget {
     required this.onSettings,
     required this.onUsageGuide,
     required this.onLogout,
+    required this.onDeleteAccount,
     required this.onContactEmail,
     required this.onAppInfo,
     this.selectedCategory,
@@ -502,6 +503,10 @@ class AppSidebar extends StatefulWidget {
   final VoidCallback onSettings;
   final VoidCallback onUsageGuide;
   final VoidCallback onLogout;
+
+  /// 회원 탈퇴 (App Store 심사 요건: 앱 내 계정 삭제 기능 필수)
+  final VoidCallback onDeleteAccount;
+
   final VoidCallback onContactEmail;
   final VoidCallback onAppInfo;
   final String? selectedCategory;
@@ -838,6 +843,12 @@ class _AppSidebarState extends State<AppSidebar> {
                                   label: '로그아웃',
                                   isSelected: false,
                                   onTap: widget.onLogout,
+                                ),
+                                _buildMenuItem(
+                                  icon: Icons.person_remove_outlined,
+                                  label: '회원 탈퇴',
+                                  isSelected: false,
+                                  onTap: widget.onDeleteAccount,
                                 ),
                               ],
                             ),

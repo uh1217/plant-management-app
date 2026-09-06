@@ -12,6 +12,7 @@ import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/views/input_screen.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
 import 'package:plantapp_p/presentation/widgets/care_button_sheet.dart';
+import 'package:plantapp_p/presentation/widgets/delete_account_dialog.dart';
 import 'package:plantapp_p/presentation/widgets/plant_list_card.dart';
 import 'package:plantapp_p/presentation/widgets/weather_recommendation_card.dart';
 
@@ -707,6 +708,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onLogout: () async {
                       setState(() => _isSidebarOpen = false);
                       await _vm.signOut();
+                    },
+                    onDeleteAccount: () {
+                      setState(() => _isSidebarOpen = false);
+                      showDeleteAccountDialog(context, _vm);
                     },
                     onContactEmail: () => sendAppEmail(context),
                     onAppInfo: () => showAppInfo(context),
