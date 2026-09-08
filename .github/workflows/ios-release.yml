@@ -5,7 +5,7 @@ on:
 
 jobs:
   release:
-    runs-on: macos-14  # Apple Silicon (M1) macOS 환경
+    runs-on: macos-15  # Apple Silicon (macOS Sequoia, 기본 Xcode 16.x 지원)
 
     steps:
       # ── 1. 소스 코드 가져오기 ──
