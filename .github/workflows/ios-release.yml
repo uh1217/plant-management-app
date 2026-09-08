@@ -12,14 +12,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Flutter 설치 ──
+      # ── 2. Xcode 버전 설정 (App Store 제출을 위해 Xcode 26+ / iOS 26 SDK 활성화) ──
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # ── 3. Flutter 설치 ──
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.38.4'
           cache: true
 
-      # ── 3. Firebase 설정 파일 복원 ──
+      # ── 4. Firebase 설정 파일 복원 ──
       - name: Restore Firebase config files
         env:
           GOOGLESERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLESERVICE_INFO_PLIST_BASE64 }}
@@ -36,7 +42,7 @@ jobs:
             exit 1
           fi
 
-      # ── 4. 임시 키체인 생성 및 Apple 배포 인증서(.p12) 등록 ──
+      # ── 5. 임시 키체인 생성 및 Apple 배포 인증서(.p12) 등록 ──
       - name: Install Apple Distribution Certificate
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_P12_BASE64 }}
@@ -59,7 +65,7 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
           security default-keychain -s "$KEYCHAIN_PATH"
 
-      # ── 5. App Store 프로비저닝 프로필 설치 ──
+      # ── 6. App Store 프로비저닝 프로필 설치 ──
       - name: Install Provisioning Profile
         env:
           PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
@@ -76,7 +82,7 @@ jobs:
           fi
           cp "$PP_PATH" "$PROFILES_DIR/Baechutnip_AppStore.mobileprovision"
 
-      # ── 6. 의존성 설치 및 CocoaPods 세팅 ──
+      # ── 7. 의존성 설치 및 CocoaPods 세팅 ──
       - name: Install dependencies & Pods
         run: |
           flutter pub get
@@ -84,15 +90,15 @@ jobs:
           pod install
           cd ..
 
-      # ── 7. 정적 분석 (info/warning은 출력만, error만 실패) ──
+      # ── 8. 정적 분석 (info/warning은 출력만, error만 실패) ──
       - name: Analyze code
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      # ── 8. 테스트 ──
+      # ── 9. 테스트 ──
       - name: Run tests
         run: flutter test
 
-      # ── 9. ExportOptions.plist 생성 ──
+      # ── 10. ExportOptions.plist 생성 ──
       - name: Generate ExportOptions.plist
         run: |
           cat > ios/ExportOptions.plist <<EOF
@@ -121,12 +127,12 @@ jobs:
           </plist>
           EOF
 
-      # ── 10. 릴리스 IPA 빌드 ──
+      # ── 11. 릴리스 IPA 빌드 ──
       - name: Build Release IPA
         run: |
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
-      # ── 11. IPA 파일 경로 탐색 ──
+      # ── 12. IPA 파일 경로 탐색 ──
       - name: Locate IPA file
         id: locate_ipa
         run: |
@@ -138,14 +144,14 @@ jobs:
           echo "Found IPA: $IPA_FILE"
           echo "ipa_path=$IPA_FILE" >> $GITHUB_OUTPUT
 
-      # ── 12. 빌드 결과물 저장 (GitHub Actions 아티팩트 다운로드용) ──
+      # ── 13. 빌드 결과물 저장 (GitHub Actions 아티팩트 다운로드용) ──
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-ipa
           path: ${{ steps.locate_ipa.outputs.ipa_path }}
 
-      # ── 13. App Store Connect API 키 복원 ──
+      # ── 14. App Store Connect API 키 복원 ──
       - name: Prepare App Store Connect API Key
         id: asc_key
         env:
@@ -159,7 +165,7 @@ jobs:
           echo "$DECODED_KEY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # ── 14. TestFlight에 자동 업로드 ──
+      # ── 15. TestFlight에 자동 업로드 ──
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v4
         with:
@@ -168,7 +174,7 @@ jobs:
           api-key-id: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           api-private-key: ${{ steps.asc_key.outputs.private_key }}
 
-      # ── 15. 임시 키체인 정리 ──
+      # ── 16. 임시 키체인 정리 ──
       - name: Clean up keychain
         if: always()
         run: |
