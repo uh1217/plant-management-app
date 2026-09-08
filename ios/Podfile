@@ -48,6 +48,11 @@ post_install do |installer|
         'PERMISSION_PHOTOS=1',
         'PERMISSION_NOTIFICATIONS=1',
       ]
+      # Pod 라이브러리/프레임워크 타겟에는 프로비저닝 프로필 및 코드 서명 강제를 해제
+      config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
+      config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
+      config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
+      config.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = ""
     end
   end
 end

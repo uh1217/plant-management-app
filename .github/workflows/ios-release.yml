@@ -121,13 +121,8 @@ jobs:
           </plist>
           EOF
 
-      # ── 10. 릴리스 IPA 빌드 (수동 서명 파라미터 전달) ──
+      # ── 10. 릴리스 IPA 빌드 ──
       - name: Build Release IPA
-        env:
-          FLUTTER_XCODE_CODE_SIGN_STYLE: "Manual"
-          FLUTTER_XCODE_DEVELOPMENT_TEAM: "HZ9V824V87"
-          FLUTTER_XCODE_CODE_SIGN_IDENTITY: "Apple Distribution"
-          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER: "Baechutnip_AppStore"
         run: |
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
