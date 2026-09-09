@@ -750,7 +750,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (_filteredPlants.isEmpty && !_showGuideDemoCard) {
+    // 한 번의 렌더링에서는 동일한 필터링·정렬 결과를 사용한다.
+    // 카드마다 getter를 다시 호출하면 빌드 도중 목록 순서가 달라질 수 있다.
+    final filteredPlants = _filteredPlants;
+
+    if (filteredPlants.isEmpty && !_showGuideDemoCard) {
       final emptyMessage = _activeSearchQuery.isNotEmpty
           ? '검색 결과가 없습니다.'
           : _selectedDate != null
@@ -793,9 +797,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final usingGuideDemoCard =
-        _showGuideDemoCard && _filteredPlants.isEmpty;
+        _showGuideDemoCard && filteredPlants.isEmpty;
     final listCount =
-        usingGuideDemoCard ? 1 : _filteredPlants.length;
+        usingGuideDemoCard ? 1 : filteredPlants.length;
 
     // 날씨 추천 카드 표시 조건: 전체 식물(카테고리·날짜·검색 없음) + 설정 ON
     // 가이드 예시 카드만 있을 때는 실제 식물이 없으므로 표시하지 않음
@@ -824,7 +828,7 @@ class _HomeScreenState extends State<HomeScreen> {
               (_, index) {
                 final plant = usingGuideDemoCard
                     ? _guideDemoPlant
-                    : _filteredPlants[index];
+                    : filteredPlants[index];
                 Widget card = PlantListCard(
                   plant: plant,
                   isSelected: _selectedPlantIds.contains(plant.id),
@@ -847,6 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
                 if (index == 0) {
                   return Padding(
+                    key: ValueKey(plant.id),
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _buildGuideShowcase(
                       showcaseKey: _plantCardKey,
@@ -864,6 +869,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
                 return Padding(
+                  key: ValueKey(plant.id),
                   padding: const EdgeInsets.only(bottom: 12),
                   child: card,
                 );
