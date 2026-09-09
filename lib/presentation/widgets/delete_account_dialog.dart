@@ -20,10 +20,7 @@ Future<void> showDeleteAccountDialog(
         children: [
           Icon(Icons.warning_amber_rounded, color: colorScheme.error),
           const SizedBox(width: 8),
-          const Text(
-            '회원 탈퇴',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
+          const Text('회원 탈퇴', style: TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
       content: Column(
@@ -33,16 +30,42 @@ Future<void> showDeleteAccountDialog(
           const Text('탈퇴 시 아래 데이터가 영구 삭제되며 복구할 수 없습니다.'),
           const SizedBox(height: 12),
           const _DeleteItem(
-              icon: Icons.local_florist_outlined, text: '등록한 모든 식물과 케어 기록'),
+            icon: Icons.local_florist_outlined,
+            text: '등록한 모든 식물과 케어 기록',
+          ),
           const _DeleteItem(
-              icon: Icons.photo_library_outlined, text: '성장 앨범의 모든 사진'),
+            icon: Icons.photo_library_outlined,
+            text: '성장 앨범의 모든 사진',
+          ),
           const _DeleteItem(icon: Icons.person_outline, text: '계정 정보'),
           const SizedBox(height: 12),
-          Text(
-            '계속하면 본인 확인을 위해 로그인 창이 한 번 더 표시됩니다.',
-            style: TextStyle(
-              fontSize: 12,
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colorScheme.errorContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '다음 계정 선택 창에서 탈퇴할 계정을 선택해 주세요.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

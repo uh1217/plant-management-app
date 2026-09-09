@@ -37,17 +37,22 @@ void main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
   // [App Check] 무단 API 쿼터 소비 방지
-  // - Release: Play Integrity (Google Play에 앱 등록 후 Firebase Console에서 활성화 필요)
-  // - Debug:   개발/테스트용 (Firebase Console > App Check > Debug token 발급 필요)
-  // Firebase Console 설정 완료 후 아래 코드가 동작합니다.
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: kReleaseMode
-        ? AndroidProvider.playIntegrity   // 배포용: Google Play Integrity API
-        : AndroidProvider.debug,          // 개발용: Debug token
-    appleProvider: kReleaseMode
-        ? AppleProvider.deviceCheck       // 배포용: Apple DeviceCheck API
-        : AppleProvider.debug,            // 개발용: Debug token
-  );
+  // - Release: Play Integrity (Android) / DeviceCheck (iOS)
+  // - Debug:   개발/테스트용 Debug token
+  // Firebase Console에 iOS DeviceCheck 설정이 누락되거나 증명 실패 시에도
+  // 앱 전체가 흰 화면에서 멈추지 않도록 안전하게 try-catch 처리
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kReleaseMode
+          ? AndroidProvider.playIntegrity   // 배포용: Google Play Integrity API
+          : AndroidProvider.debug,          // 개발용: Debug token
+      appleProvider: kReleaseMode
+          ? AppleProvider.deviceCheck       // 배포용: Apple DeviceCheck API
+          : AppleProvider.debug,            // 개발용: Debug token
+    );
+  } catch (e) {
+    debugPrint('[AppCheck] 활성화 실패 (앱 실행 계속): $e');
+  }
 
   ServiceLocator.instance.init(); //init 동작 시점 먼저 나와야 함
   await AppTheme.loadTheme();
