@@ -18,7 +18,10 @@ class NotificationService {
   static const String _channelName = '물주기 알림';
 
   /// 앱 시작 시 딱 한 번 호출.
-  /// 타임존 데이터 초기화 → 알림 플러그인 세팅 → 알림 권한 요청 순으로 실행.
+  /// 플러그인만 초기화한다. 권한 팝업은 [requestPermissions]에서 따로 요청한다.
+  ///
+  /// iOS에서 `runApp()` 전에 권한을 await하면, 허용 후 Flutter 첫 프레임이
+  /// 그려지지 않고 런치 스크린(흰 화면)에 멈출 수 있다.
   Future<void> init() async {
     // 타임존 전체 데이터 로드 후 로컬 타임존을 서울(UTC+9)로 고정.
     // 추후 위치 권한 연동 시 사용자의 실제 좌표로 조회한 타임존 ID로 교체 가능.
@@ -32,23 +35,32 @@ class NotificationService {
     const androidSettings =
         AndroidInitializationSettings('@mipmap/launcher_icon');
 
-    // iOS: 앱 시작 시 알림 권한 팝업을 표시하고 배지·소리·배너를 허용 요청
+    // 초기화 시점에는 권한을 요청하지 않는다. 팝업은 첫 프레임 이후에 띄운다.
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,   // 배너/잠금화면 알림 표시 허용 요청
-      requestBadgePermission: true,   // 앱 아이콘 배지 숫자 허용 요청
-      requestSoundPermission: true,   // 알림 소리 허용 요청
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     // flutter_local_notifications 20.x: initialize는 named parameter 방식
     await _plugin.initialize(
       settings: const InitializationSettings(
         android: androidSettings,
-        iOS: iosSettings,             // iOS 알림 초기화 추가
+        iOS: iosSettings,
       ),
     );
+  }
 
-    // Android 13+(API 33+) 기기에서 알림 표시 권한을 사용자에게 요청.
-    // 앱 최초 실행 시 허용/거부 팝업이 뜨며, 거부해도 앱은 정상 동작한다.
+  /// 알림 권한을 요청한다. UI가 그려진 뒤에 호출해야 iOS에서 흰 화면으로 멈추지 않는다.
+  Future<void> requestPermissions() async {
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
@@ -58,6 +70,8 @@ class NotificationService {
   /// 매일 [hour24]시 [minute]분에 "오늘 식물에 물 줄 시간이에요!" 알림을 반복 예약.
   /// 이미 예약된 알람이 있으면 같은 ID(_notifId)로 덮어씌운다.
   Future<void> scheduleWateringAlarm(int hour24, int minute) async {
+    await requestPermissions();
+
     final androidImpl =
         _plugin.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();

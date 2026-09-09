@@ -71,8 +71,12 @@ class ServiceLocator {
   late final GetGalleryPhotosUseCase getGalleryPhotosUseCase;
   late final AddGalleryPhotoUseCase addGalleryPhotoUseCase;
 
+  bool _initialized = false;
+
   // @init 전에 각 유스케이스 실행 되면 안됨 -> late 변수들 ServiceLocator.instance.init() 전에 값 할당 안되서 에러
   void init() {
+    if (_initialized) return;
+
     // 데이터 소스 생성
     final plantDs = PlantRemoteDataSource();
     final careItemDs = CareItemRemoteDataSource();
@@ -113,6 +117,7 @@ class ServiceLocator {
     );
     getGalleryPhotosUseCase = GetGalleryPhotosUseCase(plantRepository);
     addGalleryPhotoUseCase = AddGalleryPhotoUseCase(plantRepository);
+    _initialized = true;
   }
 
   // ViewModels은 화면이 닫힐 때 함께 메모리에서 해제되야 함

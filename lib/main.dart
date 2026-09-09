@@ -1,4 +1,6 @@
 //앱 실행, 전체 테마 설정, home_screen으로 라우팅
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'presentation/views/home_screen.dart';
 import 'presentation/app_theme.dart';
@@ -21,42 +23,11 @@ import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
 import 'package:plantapp_p/presentation/utils/app_licenses.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized(); //비동기 작업 렌더링 준비
   registerAppLicenses();
-  // 알림 채널 초기화 및 알림 권한 요청 (Firebase보다 먼저 실행)
-  await NotificationService.instance.init();
-  await AppVersion.instance.init();
-  await Firebase.initializeApp( //firebase 와 앱 연결 (Firebase SDK 초기화)
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  // 오프라인 퍼시스턴스: 로컬 디스크에 Firestore 데이터를 캐시해
-  // 앱 재시작 시 네트워크 없이도 즉시 데이터를 표시하고, 백그라운드에서 동기화함.
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
-  // [App Check] 무단 API 쿼터 소비 방지
-  // - Release: Play Integrity (Android) / DeviceCheck (iOS)
-  // - Debug:   개발/테스트용 Debug token
-  // Firebase Console에 iOS DeviceCheck 설정이 누락되거나 증명 실패 시에도
-  // 앱 전체가 흰 화면에서 멈추지 않도록 안전하게 try-catch 처리
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kReleaseMode
-          ? AndroidProvider.playIntegrity   // 배포용: Google Play Integrity API
-          : AndroidProvider.debug,          // 개발용: Debug token
-      appleProvider: kReleaseMode
-          ? AppleProvider.deviceCheck       // 배포용: Apple DeviceCheck API
-          : AppleProvider.debug,            // 개발용: Debug token
-    );
-  } catch (e) {
-    debugPrint('[AppCheck] 활성화 실패 (앱 실행 계속): $e');
-  }
-
-  ServiceLocator.instance.init(); //init 동작 시점 먼저 나와야 함
-  await AppTheme.loadTheme();
-  runApp(const PlantManagerApp()); //첫 동작
+  // Firebase·권한 요청보다 먼저 UI를 올려, iOS 권한 팝업 뒤 흰 화면 고착을 막는다.
+  runApp(const PlantManagerApp());
 }
 
 class PlantManagerApp extends StatelessWidget {
@@ -71,10 +42,115 @@ class PlantManagerApp extends StatelessWidget {
           title: '배춧잎',
           theme: AppTheme.getTheme(currentTheme),
           themeMode: ThemeMode.light,
-          home: const _AuthGate(),
+          home: const _AppBootstrap(),
         );
       },
     );
+  }
+}
+
+/// Firebase·알림 초기화를 첫 프레임 이후에 수행한다.
+/// `runApp()` 전에 권한 팝업을 await하면 iOS에서 흰 화면에 고착될 수 있다.
+class _AppBootstrap extends StatefulWidget {
+  const _AppBootstrap();
+
+  @override
+  State<_AppBootstrap> createState() => _AppBootstrapState();
+}
+
+class _AppBootstrapState extends State<_AppBootstrap> {
+  bool _ready = false;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_bootstrap());
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      await NotificationService.instance.init();
+      await AppVersion.instance.init();
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+      // 오프라인 퍼시스턴스: 로컬 디스크에 Firestore 데이터를 캐시해
+      // 앱 재시작 시 네트워크 없이도 즉시 데이터를 표시하고, 백그라운드에서 동기화함.
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      // [App Check] 무단 API 쿼터 소비 방지
+      // - Release: Play Integrity (Android) / DeviceCheck (iOS)
+      // - Debug:   개발/테스트용 Debug token
+      // DeviceCheck 미설정 시 activate()가 끝나지 않을 수 있어 타임아웃을 둔다.
+      try {
+        await FirebaseAppCheck.instance
+            .activate(
+              androidProvider: kReleaseMode
+                  ? AndroidProvider.playIntegrity
+                  : AndroidProvider.debug,
+              appleProvider: kReleaseMode
+                  ? AppleProvider.deviceCheck
+                  : AppleProvider.debug,
+            )
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('[AppCheck] 활성화 실패 또는 타임아웃 (앱 실행 계속): $e');
+      }
+
+      ServiceLocator.instance.init();
+      await AppTheme.loadTheme();
+      if (!mounted) return;
+      setState(() {
+        _ready = true;
+        _error = null;
+      });
+      // 로그인/홈 화면이 그려진 뒤에 알림 권한을 요청한다.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(NotificationService.instance.requestPermissions());
+      });
+    } catch (e, st) {
+      debugPrint('[Bootstrap] 초기화 실패: $e\n$st');
+      if (!mounted) return;
+      setState(() => _error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('앱을 시작하는 중 문제가 발생했습니다.'),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    setState(() => _error = null);
+                    unawaited(_bootstrap());
+                  },
+                  child: const Text('다시 시도'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    if (!_ready) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return const _AuthGate();
   }
 }
 
