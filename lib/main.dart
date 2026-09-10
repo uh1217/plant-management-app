@@ -60,34 +60,53 @@ class _AppBootstrap extends StatefulWidget {
 
 class _AppBootstrapState extends State<_AppBootstrap> {
   bool _ready = false;
+  String? _failedStep;
   Object? _error;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_bootstrap());
+    // 플러그인 채널은 첫 프레임 이후에 호출해야 iOS에서 MissingPluginException이 나지 않는다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_bootstrap());
+    });
+  }
+
+  Future<void> _runOptional(String step, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e, st) {
+      debugPrint('[Bootstrap] $step 실패 (계속 진행): $e\n$st');
+    }
   }
 
   Future<void> _bootstrap() async {
+    String step = '시작';
     try {
-      await NotificationService.instance.init();
-      await AppVersion.instance.init();
+      step = '알림 초기화';
+      await _runOptional(step, NotificationService.instance.init);
+
+      step = '버전 정보';
+      await _runOptional(step, AppVersion.instance.init);
+
+      step = 'Firebase 연결';
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
       }
-      // 오프라인 퍼시스턴스: 로컬 디스크에 Firestore 데이터를 캐시해
-      // 앱 재시작 시 네트워크 없이도 즉시 데이터를 표시하고, 백그라운드에서 동기화함.
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-      // [App Check] 무단 API 쿼터 소비 방지
-      // - Release: Play Integrity (Android) / DeviceCheck (iOS)
-      // - Debug:   개발/테스트용 Debug token
+
+      step = 'Firestore 설정';
+      await _runOptional(step, () async {
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+      });
+
       // DeviceCheck 미설정 시 activate()가 끝나지 않을 수 있어 타임아웃을 둔다.
-      try {
+      step = 'App Check';
+      await _runOptional(step, () async {
         await FirebaseAppCheck.instance
             .activate(
               androidProvider: kReleaseMode
@@ -98,25 +117,30 @@ class _AppBootstrapState extends State<_AppBootstrap> {
                   : AppleProvider.debug,
             )
             .timeout(const Duration(seconds: 8));
-      } catch (e) {
-        debugPrint('[AppCheck] 활성화 실패 또는 타임아웃 (앱 실행 계속): $e');
-      }
+      });
 
+      step = '서비스 초기화';
       ServiceLocator.instance.init();
-      await AppTheme.loadTheme();
+
+      step = '테마 로드';
+      await _runOptional(step, AppTheme.loadTheme);
+
       if (!mounted) return;
       setState(() {
         _ready = true;
         _error = null;
+        _failedStep = null;
       });
-      // 로그인/홈 화면이 그려진 뒤에 알림 권한을 요청한다.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         unawaited(NotificationService.instance.requestPermissions());
       });
     } catch (e, st) {
-      debugPrint('[Bootstrap] 초기화 실패: $e\n$st');
+      debugPrint('[Bootstrap] $step 실패: $e\n$st');
       if (!mounted) return;
-      setState(() => _error = e);
+      setState(() {
+        _failedStep = step;
+        _error = e;
+      });
     }
   }
 
@@ -124,22 +148,45 @@ class _AppBootstrapState extends State<_AppBootstrap> {
   Widget build(BuildContext context) {
     if (_error != null) {
       return Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('앱을 시작하는 중 문제가 발생했습니다.'),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    setState(() => _error = null);
-                    unawaited(_bootstrap());
-                  },
-                  child: const Text('다시 시도'),
-                ),
-              ],
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    '앱을 시작하는 중 문제가 발생했습니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  if (_failedStep != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '실패 단계: $_failedStep',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  SelectableText(
+                    '$_error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: () {
+                      setState(() {
+                        _error = null;
+                        _failedStep = null;
+                      });
+                      unawaited(_bootstrap());
+                    },
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

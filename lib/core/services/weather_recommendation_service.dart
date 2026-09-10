@@ -55,18 +55,28 @@ class WeatherRecommendationService {
 내일은 비가 내릴 예정으로 최고 22°C, 습도 85%가 예상돼요. 실내 식물의 통풍을 줄이고 과습에 주의하세요.
 ''';
 
-  late GenerativeModel _model;
+  GenerativeModel? _modelCache;
 
   // ─── 슬롯 기반 캐시 ────────────────────────────────────────────────────────
   String? _cachedRecommendation;
   RecommendationSlot? _cachedSlot;
   DateTime? _cachedAt;
 
+  GenerativeModel get _model => _modelCache ??= FirebaseAI.googleAI()
+      .generativeModel(
+        model: _modelName,
+        systemInstruction: Content.system(_personaSystemInstruction),
+      );
+
   void init() {
-    _model = FirebaseAI.googleAI().generativeModel(
-      model: _modelName,
-      systemInstruction: Content.system(_personaSystemInstruction),
-    );
+    try {
+      _modelCache ??= FirebaseAI.googleAI().generativeModel(
+        model: _modelName,
+        systemInstruction: Content.system(_personaSystemInstruction),
+      );
+    } catch (e, st) {
+      debugPrint('[WeatherRecommendation] 초기화 실패 (앱 실행 계속): $e\n$st');
+    }
   }
 
   /// 현재 시각 기준 슬롯 반환 (static: UseCase에서도 참조 가능)

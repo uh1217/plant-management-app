@@ -10,6 +10,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
 
   // 알림 식별자 — 같은 ID로 재등록하면 기존 알람이 덮어씌워짐
   static const int _notifId = 1;
@@ -23,6 +24,7 @@ class NotificationService {
   /// iOS에서 `runApp()` 전에 권한을 await하면, 허용 후 Flutter 첫 프레임이
   /// 그려지지 않고 런치 스크린(흰 화면)에 멈출 수 있다.
   Future<void> init() async {
+    if (_initialized) return;
     // 타임존 전체 데이터 로드 후 로컬 타임존을 서울(UTC+9)로 고정.
     // 추후 위치 권한 연동 시 사용자의 실제 좌표로 조회한 타임존 ID로 교체 가능.
     tz_data.initializeTimeZones();
@@ -49,6 +51,7 @@ class NotificationService {
         iOS: iosSettings,
       ),
     );
+    _initialized = true;
   }
 
   /// 알림 권한을 요청한다. UI가 그려진 뒤에 호출해야 iOS에서 흰 화면으로 멈추지 않는다.

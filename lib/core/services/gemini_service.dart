@@ -54,7 +54,7 @@ class GeminiService {
 * 사용자가 물어본 질문의 의도에만 답변하고 질문의 의도와 관계없는 내용은 출력하지 말아줘.
 ''';
 
-  late GenerativeModel _model;
+  GenerativeModel? _modelCache;
   ChatSession? _chatSession;
 
   // ─── 전체 RAG 컨텍스트 캐시 (ALL_PLANTS 인텐트용, 5분 TTL) ───────────────
@@ -80,12 +80,22 @@ class GeminiService {
     debugPrint('[GeminiService] RAG 캐시 + 이름 캐시 무효화');
   }
 
+  GenerativeModel get _model => _modelCache ??= FirebaseAI.googleAI()
+      .generativeModel(
+        model: _modelName,
+        systemInstruction: Content.system(_personaSystemInstruction),
+      );
+
   /// ServiceLocator.init() 에서 호출 — Firebase 초기화 이후에 실행되어야 한다.
   void init() {
-    _model = FirebaseAI.googleAI().generativeModel(
-      model: _modelName,
-      systemInstruction: Content.system(_personaSystemInstruction),
-    );
+    try {
+      _modelCache ??= FirebaseAI.googleAI().generativeModel(
+        model: _modelName,
+        systemInstruction: Content.system(_personaSystemInstruction),
+      );
+    } catch (e, st) {
+      debugPrint('[GeminiService] 초기화 실패 (앱 실행 계속): $e\n$st');
+    }
   }
 
   // ─── STEP 1: 식물 이름 캐시 로드 (이름 + ID만, 초경량) ───────────────────

@@ -84,8 +84,10 @@ class ServiceLocator {
     final userDs = UserRemoteDataSource();
     cityDataSource = CityDataSource();
     weatherDataSource = WeatherRemoteDataSource();
-    geminiService = GeminiService()..init(); // Firebase 초기화 이후 실행
-    weatherRecommendationService = WeatherRecommendationService()..init();
+    geminiService = GeminiService();
+    weatherRecommendationService = WeatherRecommendationService();
+    geminiService.init();
+    weatherRecommendationService.init();
     final geminiDs = GeminiDataSource(geminiService);
 
     // RepositoryImpl 에 주입
