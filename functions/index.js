@@ -19,7 +19,7 @@ exports.getWeatherForecast = onCall(
   {
     secrets: [owmApiKey],
     region: "asia-northeast3",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
     maxInstances: 5,
   },
   async (request) => {
