@@ -23,6 +23,7 @@ exports.getWeatherForecast = onCall(
     maxInstances: 5,
   },
   async (request) => {
+    console.log("weather data", JSON.stringify(request.data));
     const lat = Number(request.data?.lat);
     const lon = Number(request.data?.lon);
     if (
@@ -48,8 +49,7 @@ exports.getWeatherForecast = onCall(
         throw new HttpsError("unavailable", "weather api error");
       }
 
-      // JSON 문자열 그대로 반환 → 클라이언트가 기존과 동일하게 파싱
-      return await owmRes.text();
+      return JSON.parse(await owmRes.text());
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       console.error("OWM fetch error:", err);

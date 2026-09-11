@@ -46,10 +46,13 @@ class WeatherRemoteDataSource {
         'getWeatherForecast',
         options: HttpsCallableOptions(timeout: const Duration(seconds: 15)),
       );
-      final result =
-          await callable.call<String>({'lat': lat, 'lon': lon});
-
-      final json = jsonDecode(result.data) as Map<String, dynamic>;
+      final result = await callable.call<dynamic>(
+        <String, dynamic>{'lat': lat, 'lon': lon},
+      );
+      final raw = result.data;
+      final json = raw is String
+          ? jsonDecode(raw) as Map<String, dynamic>
+          : jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
       final list = json['list'] as List<dynamic>;
 
       // 대상 날짜 결정 (오전=오늘, 오후=내일)
