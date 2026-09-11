@@ -19,11 +19,10 @@ exports.getWeatherForecast = onCall(
   {
     secrets: [owmApiKey],
     region: "asia-northeast3",
-    enforceAppCheck: false,
+    enforceAppCheck: true,
     maxInstances: 5,
   },
   async (request) => {
-    console.log("weather data", JSON.stringify(request.data));
     const lat = Number(request.data?.lat);
     const lon = Number(request.data?.lon);
     if (
