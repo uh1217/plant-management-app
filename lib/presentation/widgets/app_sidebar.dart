@@ -493,6 +493,7 @@ class AppSidebar extends StatefulWidget {
     this.guideFuncSectionKey,
     this.guideCategoryListKey,
     this.guideDemoCategories = const [],
+    this.guideScope = 'home',
   });
 
   final HomeViewModel viewModel;
@@ -537,6 +538,9 @@ class AppSidebar extends StatefulWidget {
   /// 사용 가이드: 등록된 카테고리가 없을 때 사이드바에만 표시하는 예시 이름
   /// (식물 데이터에 넣지 않음)
   final List<String> guideDemoCategories;
+
+  /// ShowcaseView scope. 홈 가이드는 'home'으로 고정해 입력 화면 scope와 섞이지 않게 한다.
+  final String guideScope;
 
   @override
   State<AppSidebar> createState() => _AppSidebarState();
@@ -993,6 +997,7 @@ class _AppSidebarState extends State<AppSidebar> {
     if (showcaseKey == null) return child;
     return Showcase(
       key: showcaseKey,
+      scope: widget.guideScope,
       title: title,
       description: description,
       tooltipBackgroundColor: Colors.white,
@@ -1070,6 +1075,7 @@ class _AppSidebarState extends State<AppSidebar> {
     if (showcaseKey != null && showcaseDescription != null) {
       return Showcase(
         key: showcaseKey,
+        scope: widget.guideScope,
         description: showcaseDescription,
         tooltipBackgroundColor: Colors.white,
         textColor: Colors.black87,

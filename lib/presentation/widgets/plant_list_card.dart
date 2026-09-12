@@ -1,7 +1,6 @@
 //가로로 긴 카드 UI, 물주기 상태 표시 (색상 구분)
 //체크박스 선택, 최근 물 준 날짜 클릭 → 캘린더 팝업
 //이미지 클릭 → 식물 기록 일지 갤러리 팝업, 더블클릭 → 편집 모달
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:plantapp_p/domain/entities/care_record.dart';
@@ -9,8 +8,8 @@ import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/care_display.dart';
+import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/widgets/plant_gallery_dialog.dart';
-import 'dart:io';
 
 // PlantListCard.tsx 변환
 class PlantListCard extends StatefulWidget {
@@ -260,15 +259,6 @@ class _PlantListCardState extends State<PlantListCard> {
     );
   }
 
-  Widget _buildPlaceholder() {
-    return Image.asset(
-      'assets/images/home_gardening.jpg',
-      width: 100,
-      height: 125,
-      fit: BoxFit.cover,
-    );
-  }
-
   Widget _buildCardContent(
       Map<String, dynamic> status, ThemeData theme, ColorScheme colorScheme) {
     return Container(
@@ -301,32 +291,11 @@ class _PlantListCardState extends State<PlantListCard> {
               onTap: _showPlantGalleryDialog,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: widget.plant.imageUrl.isNotEmpty
-                    ? (widget.plant.imageUrl.startsWith('http')
-                        ? CachedNetworkImage(
-                            imageUrl: widget.plant.imageUrl,
-                            width: 100,
-                            height: 125,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => const SizedBox(
-                              width: 80,
-                              height: 120,
-                              child: Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) =>
-                                _buildPlaceholder(),
-                          )
-                        : Image.file(
-                            File(widget.plant.imageUrl),
-                            width: 80,
-                            height: 120,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholder(),
-                          ))
-                    : _buildPlaceholder(),
+                child: buildPlantImage(
+                  imageUrl: widget.plant.imageUrl,
+                  width: 100,
+                  height: 125,
+                ),
               ),
             ),
             const SizedBox(width: 12),

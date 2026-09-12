@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,55 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+const kDefaultPlantImageAsset = 'assets/images/home_gardening.jpg';
+
+/// 대표 사진 표시. 빈 값·에셋 경로는 [kDefaultPlantImageAsset]을 Image.asset으로 연다.
+/// (에셋 경로를 Image.file로 열면 iOS에서 카드 빌드가 실패할 수 있다.)
+Widget buildPlantImage({
+  required String imageUrl,
+  BoxFit fit = BoxFit.cover,
+  double? width,
+  double? height,
+}) {
+  final asset = imageUrl.isEmpty
+      ? kDefaultPlantImageAsset
+      : (imageUrl.startsWith('assets/') ? imageUrl : null);
+  if (asset != null) {
+    return Image.asset(asset, width: width, height: height, fit: fit);
+  }
+  if (imageUrl.startsWith('http')) {
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: width,
+      height: height,
+      fit: fit,
+      placeholder: (_, __) => SizedBox(
+        width: width,
+        height: height,
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      errorWidget: (_, __, ___) => Image.asset(
+        kDefaultPlantImageAsset,
+        width: width,
+        height: height,
+        fit: fit,
+      ),
+    );
+  }
+  return Image.file(
+    File(imageUrl),
+    width: width,
+    height: height,
+    fit: fit,
+    errorBuilder: (_, __, ___) => Image.asset(
+      kDefaultPlantImageAsset,
+      width: width,
+      height: height,
+      fit: fit,
+    ),
+  );
+}
 
 /// 시스템 사진 선택 도구로 갤러리에서 한 장을 고른다.
 /// [requestFullMetadata]를 끄면 Android 13+에서 READ_MEDIA_IMAGES가 필요 없다.

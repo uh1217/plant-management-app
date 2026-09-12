@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:showcaseview/showcaseview.dart';
 
@@ -72,10 +70,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   HomeViewModel get _vm => widget.viewModel;
 
-  /// 가이드 진행 중에만 Showcase GlobalKey를 트리에 붙인다.
-  /// 평소에 리스트 0번 카드·사이드바에 상시 붙어 있으면 iOS에서 화면 전환 후
-  /// 리스트 레이아웃이 붕괴한다.
-  bool get _isGuideActive => _guideStep > 0;
+  /// 홈 단계(사이드바·리스트)에서만 Showcase GlobalKey를 붙인다.
+  /// 입력 설명(_guideStep == 1)과 겹치면 Showcase가 'input' scope에 붙어
+  /// 입력 화면 dispose 때 같이 삭제된다.
+  bool get _isGuideActive => _guideStep >= 2;
 
   @override
   void initState() {
@@ -85,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _showcaseView = ShowcaseView.register(
       scope: 'home',
       onComplete: _onGuideStepComplete,
+      skipIfTargetNotPresent: true,
       globalTooltipActionConfig: const TooltipActionConfig(
         position: TooltipActionPosition.outside,
         alignment: MainAxisAlignment.end,
@@ -136,6 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         setState(() => _isSidebarOpen = true);
+        await Future<void>.delayed(Duration.zero);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
         await Future.delayed(const Duration(milliseconds: 420));
         if (mounted) _showcaseView.startShowCase([_sidebarNavKey]);
       });
@@ -251,6 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Showcase(
       key: showcaseKey,
+      scope: 'home',
       title: title,
       description: description,
       tooltipBackgroundColor: bgColor,
@@ -713,6 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _isGuideActive ? _sidebarFuncKey : null,
                     guideCategoryListKey:
                         _isGuideActive ? _sidebarCategoryKey : null,
+                    guideScope: 'home',
                     guideDemoCategories: _showGuideDemoCategories
                         ? _guideDemoCategoryNames
                         : const [],
@@ -1149,21 +1153,7 @@ class _EditPlantFormContentState
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: _imageUrl.isNotEmpty
-                            ? (_imageUrl.startsWith('http')
-                                ? Image.network(
-                                    _imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        _buildImagePlaceholder(colorScheme),
-                                  )
-                                : Image.file(
-                                    File(_imageUrl),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        _buildImagePlaceholder(colorScheme),
-                                  ))
-                            : _buildImagePlaceholder(colorScheme),
+                        child: buildPlantImage(imageUrl: _imageUrl),
                       ),
                       if (_isUploading)
                         Positioned.fill(
@@ -1347,22 +1337,6 @@ class _EditPlantFormContentState
                   )
                   .toList(),
             ),
-    );
-  }
-
-  Widget _buildImagePlaceholder(ColorScheme colorScheme) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.add_photo_alternate_outlined,
-            size: 40, color: colorScheme.onSurfaceVariant),
-        const SizedBox(height: 4),
-        Text(
-          '사진 추가',
-          style: TextStyle(
-              fontSize: 12, color: colorScheme.onSurfaceVariant),
-        ),
-      ],
     );
   }
 }

@@ -1,13 +1,9 @@
-import 'dart:io';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/core/services/app_version.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
-import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
@@ -55,6 +51,7 @@ class _InputScreenState extends State<InputScreen> {
     if (!widget.guideMode) return;
     _showcaseView = ShowcaseView.register(
       scope: 'input',
+      skipIfTargetNotPresent: true,
       onFinish: () {
         // Phase 2 완료 → 홈으로 돌아가기
         if (mounted) Navigator.pop(context);
@@ -121,6 +118,7 @@ class _InputScreenState extends State<InputScreen> {
                     child: widget.guideMode
                         ? Showcase(
                             key: _inputFormGuideKey,
+                            scope: 'input',
                             title: '식물 입력 화면',
                             description:
                                 '사진·이름·카테고리·물주기 주기를 입력하고\n저장 버튼을 눌러 식물을 추가하세요',
@@ -500,11 +498,7 @@ class _InputFormContentState extends State<_InputFormContent> {
       children: [
         Positioned.fill(
           child: Image.asset(
-            AppTheme.themeNotifier.value == AppThemeType.starbucks
-                ? 'assets/images/starbucks.jpg'
-                : isDark
-                    ? 'assets/images/dark_jungle_1.jpg'
-                    : 'assets/images/bright_jungle_1.jpg',
+            kDefaultPlantImageAsset,
             fit: BoxFit.cover,
             opacity: const AlwaysStoppedAnimation(0.5),
           ),
@@ -599,38 +593,7 @@ class _InputFormContentState extends State<_InputFormContent> {
   }
 
   Widget _buildImageWidget() {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (_imageUrl.isEmpty) {
-      return Container(
-        color: colorScheme.tertiary,
-        child: Icon(Icons.image,
-            size: 48, color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
-      );
-    }
-    if (_imageUrl.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: _imageUrl,
-        fit: BoxFit.cover,
-        placeholder: (_, __) => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        errorWidget: (_, __, ___) => _errorIcon(),
-      );
-    }
-    return Image.file(
-      File(_imageUrl),
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _errorIcon(),
-    );
-  }
-
-  Widget _errorIcon() {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Icon(Icons.broken_image,
-          size: 48, color: colorScheme.onSurfaceVariant.withOpacity(0.3)),
-    );
+    return buildPlantImage(imageUrl: _imageUrl);
   }
 
   Widget _buildNameField() {
