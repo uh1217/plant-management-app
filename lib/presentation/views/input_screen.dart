@@ -43,13 +43,16 @@ class _InputScreenState extends State<InputScreen> {
   bool _isSidebarOpen = false;
 
   // ── 사용자 가이드 (Phase 2) ───────────────────────────────────────────────
-  late final ShowcaseView _showcaseView;
+  // 일반 입력에서는 등록하지 않는다. 홈과 동시에 'input' scope가 뜨면
+  // iOS에서 Overlay/리스트 GlobalKey가 붕괴하는 원인이 된다.
+  ShowcaseView? _showcaseView;
   final GlobalKey _inputFormGuideKey =
       GlobalKey(debugLabel: 'guide_inputForm');
 
   @override
   void initState() {
     super.initState();
+    if (!widget.guideMode) return;
     _showcaseView = ShowcaseView.register(
       scope: 'input',
       onFinish: () {
@@ -61,20 +64,18 @@ class _InputScreenState extends State<InputScreen> {
         alignment: MainAxisAlignment.end,
       ),
     );
-    if (widget.guideMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) {
-            _showcaseView.startShowCase([_inputFormGuideKey]);
-          }
-        });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) {
+          _showcaseView?.startShowCase([_inputFormGuideKey]);
+        }
       });
-    }
+    });
   }
 
   @override
   void dispose() {
-    _showcaseView.unregister();
+    _showcaseView?.unregister();
     super.dispose();
   }
 
@@ -117,21 +118,23 @@ class _InputScreenState extends State<InputScreen> {
                 children: [
                   _buildHeader(),
                   Expanded(
-                    child: Showcase(
-                      key: _inputFormGuideKey,
-                      title: '식물 입력 화면',
-                      description:
-                          '사진·이름·카테고리·물주기 주기를 입력하고\n저장 버튼을 눌러 식물을 추가하세요',
-                      tooltipBackgroundColor: Colors.white,
-                      textColor: Colors.black87,
-                      tooltipActions: const [
-                        TooltipActionButton(
-                          type: TooltipDefaultActionType.next,
-                          name: '확인',
-                        ),
-                      ],
-                      child: _InputFormContent(onSave: _handleSave),
-                    ),
+                    child: widget.guideMode
+                        ? Showcase(
+                            key: _inputFormGuideKey,
+                            title: '식물 입력 화면',
+                            description:
+                                '사진·이름·카테고리·물주기 주기를 입력하고\n저장 버튼을 눌러 식물을 추가하세요',
+                            tooltipBackgroundColor: Colors.white,
+                            textColor: Colors.black87,
+                            tooltipActions: const [
+                              TooltipActionButton(
+                                type: TooltipDefaultActionType.next,
+                                name: '확인',
+                              ),
+                            ],
+                            child: _InputFormContent(onSave: _handleSave),
+                          )
+                        : _InputFormContent(onSave: _handleSave),
                   ),
                 ],
               ),
@@ -420,6 +423,7 @@ class _InputFormContentState extends State<_InputFormContent> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      primary: false,
       padding: const EdgeInsets.all(16),
       child: Form(
         key: _formKey,

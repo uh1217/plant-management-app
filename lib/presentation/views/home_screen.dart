@@ -72,6 +72,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   HomeViewModel get _vm => widget.viewModel;
 
+  /// 가이드 진행 중에만 Showcase GlobalKey를 트리에 붙인다.
+  /// 평소에 리스트 0번 카드·사이드바에 상시 붙어 있으면 iOS에서 화면 전환 후
+  /// 리스트 레이아웃이 붕괴한다.
+  bool get _isGuideActive => _guideStep > 0;
+
   @override
   void initState() {
     super.initState();
@@ -103,9 +108,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 사이드바 "사용 가이드" 탭 시 호출 — 입력 화면(Phase 1)부터 시작
   void startUserGuide() {
     if (!mounted) return;
-    _showGuideDemoCategories = false;
-    _showGuideDemoCard = false;
-    _guideStep = 1;
+    setState(() {
+      _showGuideDemoCategories = false;
+      _showGuideDemoCard = false;
+      _guideStep = 1;
+    });
     _openGuideInputScreen();
   }
 
@@ -234,6 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required Widget child,
     String buttonName = '다음',
   }) {
+    if (!_isGuideActive) return child;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor    = isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9);
     final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
@@ -699,9 +707,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         () { if (mounted) startUserGuide(); },
                       );
                     },
-                    guideNavSectionKey: _sidebarNavKey,
-                    guideFuncSectionKey: _sidebarFuncKey,
-                    guideCategoryListKey: _sidebarCategoryKey,
+                    guideNavSectionKey:
+                        _isGuideActive ? _sidebarNavKey : null,
+                    guideFuncSectionKey:
+                        _isGuideActive ? _sidebarFuncKey : null,
+                    guideCategoryListKey:
+                        _isGuideActive ? _sidebarCategoryKey : null,
                     guideDemoCategories: _showGuideDemoCategories
                         ? _guideDemoCategoryNames
                         : const [],
@@ -812,6 +823,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _vm.recommendationStatus == RecommendationStatus.loading);
 
     return CustomScrollView(
+      primary: false,
       slivers: [
         if (showWeatherCard)
           SliverToBoxAdapter(
@@ -849,22 +861,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (usingGuideDemoCard) {
                   card = AbsorbPointer(child: card);
                 }
-                if (index == 0) {
-                  return Padding(
-                    key: ValueKey(plant.id),
-                    padding: const EdgeInsets.only(bottom: 12),
+                if (index == 0 && _isGuideActive) {
+                  card = _buildGuideShowcase(
+                    showcaseKey: _plantCardKey,
+                    title: '리스트 화면',
+                    description:
+                        '등록된 각 식물의 이름·카테고리·물주기 상태가\n카드 형태로 나열됩니다',
                     child: _buildGuideShowcase(
-                      showcaseKey: _plantCardKey,
-                      title: '리스트 화면',
-                      description:
-                          '등록된 각 식물의 이름·카테고리·물주기 상태가\n카드 형태로 나열됩니다',
-                      child: _buildGuideShowcase(
-                        showcaseKey: _cardEditDeleteKey,
-                        title: '수정 / 삭제',
-                        description: '더블탭: 식물 정보 수정\n길게 눌러 드래그: 삭제',
-                        buttonName: '완료',
-                        child: card,
-                      ),
+                      showcaseKey: _cardEditDeleteKey,
+                      title: '수정 / 삭제',
+                      description: '더블탭: 식물 정보 수정\n길게 눌러 드래그: 삭제',
+                      buttonName: '완료',
+                      child: card,
                     ),
                   );
                 }
