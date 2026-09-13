@@ -296,8 +296,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Plant Operations ──────────────────────────────────────────────────────
 
-  Future<void> _addPlant(Plant plant) async {
-    await _vm.savePlant(plant);
+  Future<bool> _addPlant(Plant plant) async {
+    return _vm.savePlant(plant);
   }
 
 

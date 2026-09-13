@@ -4,6 +4,7 @@ import 'package:showcaseview/showcaseview.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
 import 'package:plantapp_p/core/services/app_version.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
+import 'package:plantapp_p/presentation/app_theme.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/widgets/app_sidebar.dart';
@@ -20,7 +21,7 @@ class InputScreen extends StatefulWidget {
   });
 
   final HomeViewModel viewModel;
-  final Future<void> Function(Plant) onSave;
+  final Future<bool> Function(Plant) onSave;
 
   /// 사이드바 검색 제출 시 HomeScreen에 검색어를 전달하고 InputScreen을 닫음
   final void Function(String)? onSearchRequested;
@@ -78,8 +79,15 @@ class _InputScreenState extends State<InputScreen> {
 
   Future<void> _handleSave(Plant plant) async {
     try {
-      await widget.onSave(plant);
-      if (mounted) Navigator.pop(context); // 저장 성공 시에만 pop
+      final saved = await widget.onSave(plant);
+      if (!mounted) return;
+      if (saved) {
+        Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -498,7 +506,11 @@ class _InputFormContentState extends State<_InputFormContent> {
       children: [
         Positioned.fill(
           child: Image.asset(
-            kDefaultPlantImageAsset,
+            AppTheme.themeNotifier.value == AppThemeType.starbucks
+                ? 'assets/images/starbucks.jpg'
+                : isDark
+                    ? 'assets/images/dark_jungle_1.jpg'
+                    : 'assets/images/bright_jungle_1.jpg',
             fit: BoxFit.cover,
             opacity: const AlwaysStoppedAnimation(0.5),
           ),

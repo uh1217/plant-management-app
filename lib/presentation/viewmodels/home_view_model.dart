@@ -221,8 +221,19 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<bool> savePlant(Plant plant) async {
     final result = await _savePlant(plant);
-    if (result is Failure) return _fail(result.message);
-    _geminiService.invalidateRagCache(); //RAG 식물 목록 업데이트
+    if (result is Failure) {
+      debugPrint('[HomeViewModel] 식물 저장 오류: ${result.message}');
+      return false;
+    }
+    final idx = plants.indexWhere((p) => p.id == plant.id);
+    if (idx >= 0) {
+      plants = [...plants]..[idx] = plant;
+    } else {
+      plants = [...plants, plant];
+    }
+    status = HomeUiStatus.success;
+    notifyListeners();
+    _geminiService.invalidateRagCache();
     invalidateRecommendationCache();
     return true;
   }
