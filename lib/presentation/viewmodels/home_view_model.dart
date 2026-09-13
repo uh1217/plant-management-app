@@ -223,6 +223,9 @@ class HomeViewModel extends ChangeNotifier {
     final result = await _savePlant(plant);
     if (result is Failure) {
       debugPrint('[HomeViewModel] 식물 저장 오류: ${result.message}');
+      if (plant.imageUrl.isEmpty) {
+        debugPrint('[HomeViewModel] 사진이 비어 있습니다. 사진을 추가한 뒤 다시 저장해 주세요.');
+      }
       return false;
     }
     final idx = plants.indexWhere((p) => p.id == plant.id);

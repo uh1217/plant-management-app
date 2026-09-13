@@ -84,17 +84,27 @@ class _InputScreenState extends State<InputScreen> {
       if (saved) {
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
-        );
+        _showSaveFailedMessage(plant);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저장에 실패했습니다. 다시 시도해주세요.')),
-        );
-      }
+      if (mounted) _showSaveFailedMessage(plant);
     }
+  }
+
+  void _showSaveFailedMessage(Plant plant) {
+    final noPhoto = plant.imageUrl.isEmpty;
+    if (noPhoto) {
+      debugPrint('[InputScreen] 사진 없이 저장 실패 — 사진을 추가해 주세요.');
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          noPhoto
+              ? '사진을 넣어 주세요. 사진 없이 저장하지 못했습니다.'
+              : '저장에 실패했습니다. 다시 시도해주세요.',
+        ),
+      ),
+    );
   }
 
   @override
