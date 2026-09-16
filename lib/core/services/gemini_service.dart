@@ -101,6 +101,8 @@ class GeminiService {
   // ─── STEP 1: 식물 이름 캐시 로드 (이름 + ID만, 초경량) ───────────────────
   // 전체 데이터 대신 이름과 doc ID만 캐싱해 메모리·지연을 최소화한다. (전체 식물 이름 doc ID)
   Future<List<_PlantEntry>> _getPlantNameCache(String uid) async {
+    if (uid.isEmpty) return const [];
+
     final now = DateTime.now();
     if (_plantNameCache != null &&
         _nameCachedUid == uid &&
@@ -341,6 +343,34 @@ class GeminiService {
     buffer.writeln('');
   }
 
+  /// uid가 비어 있으면(게스트) Firestore·Intent를 건너뛴다.
+  Future<String> _resolveRagContext({
+    required String uid,
+    required String text,
+    required bool hasImage,
+  }) async {
+    if (uid.isEmpty) {
+      debugPrint('[GeminiService] 게스트 모드 → Intent/RAG 생략');
+      return '';
+    }
+
+    final plantEntries = await _getPlantNameCache(uid);
+    final matchedIds = _matchPlantNames(text, plantEntries);
+
+    if (matchedIds.isNotEmpty) {
+      debugPrint('[GeminiService] 키워드 매칭 → 해당 식물만 fetch');
+      return _buildRagContextForIds(uid, matchedIds);
+    }
+
+    final intent = await _classifyIntent(text, plantEntries, hasImage);
+    if (intent == _QueryIntent.allPlants) {
+      debugPrint('[GeminiService] Intent: ALL_PLANTS → 전체 fetch');
+      return _buildRagContext(uid);
+    }
+    debugPrint('[GeminiService] Intent: NO_RAG → 데이터 없이 답변');
+    return '';
+  }
+
   /// Gemini 모델에 메시지를 전송하고 응답 텍스트를 반환한다.
   ///
   /// [동적 RAG 흐름]
@@ -363,30 +393,11 @@ class GeminiService {
   }) async {
     _chatSession ??= _model.startChat();
 
-    // STEP 1: 전체 식물 이름 캐시 로드(doc ID,이름)
-    final plantEntries = await _getPlantNameCache(uid);
-
-    String ragContext;
-
-    // STEP 2: 키워드 매칭(사용자 질문에 해당되는 doc ID 반환)
-    final matchedIds = _matchPlantNames(text, plantEntries);
-
-    if (matchedIds.isNotEmpty) {
-      // 매칭된 식물 데이터만 fetch (가장 빠른 경로) (doc ID 기반으로 Firebase 조회)
-      ragContext = await _buildRagContextForIds(uid, matchedIds);
-    } else {
-      // STEP 3: Intent 분류 (폴백) (매칭 키워드 못찾을 시 전체 식물 데이터가 필요한지 아닌지)
-      final intent =
-          await _classifyIntent(text, plantEntries, imageBytes != null);
-
-      if (intent == _QueryIntent.allPlants) {
-        debugPrint('[GeminiService] Intent: ALL_PLANTS → 전체 fetch'); //(Gemini intent 분류 호출)
-        ragContext = await _buildRagContext(uid);
-      } else {
-        debugPrint('[GeminiService] Intent: NO_RAG → 데이터 없이 답변'); //(Gemini intent 분류 호출)
-        ragContext = '';
-      }
-    }
+    final ragContext = await _resolveRagContext(
+      uid: uid,
+      text: text,
+      hasImage: imageBytes != null,
+    );
 
     final promptText =
         ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text'; //보낼 최종 프롬프트 조립
@@ -421,21 +432,11 @@ class GeminiService {
   }) async* {
     _chatSession ??= _model.startChat();
 
-    // RAG 컨텍스트 구성 (sendMessage와 동일한 흐름)
-    final plantEntries = await _getPlantNameCache(uid);
-    final matchedIds = _matchPlantNames(text, plantEntries);
-
-    String ragContext;
-    if (matchedIds.isNotEmpty) {
-      ragContext = await _buildRagContextForIds(uid, matchedIds);
-    } else {
-      final intent = await _classifyIntent(text, plantEntries, imageBytes != null);
-      if (intent == _QueryIntent.allPlants) {
-        ragContext = await _buildRagContext(uid);
-      } else {
-        ragContext = '';
-      }
-    }
+    final ragContext = await _resolveRagContext(
+      uid: uid,
+      text: text,
+      hasImage: imageBytes != null,
+    );
 
     final promptText = ragContext.isEmpty ? text : '$ragContext\n사용자 질문: $text';
 

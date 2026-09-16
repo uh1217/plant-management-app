@@ -11,15 +11,18 @@ import 'package:plantapp_p/presentation/viewmodels/chat_view_model.dart';
 
 // ── 공개 진입점 ──────────────────────────────────────────────────────────────
 
-/// 사이드바 메뉴나 다른 화면에서 호출해 챗봇 다이얼로그를 표시한다.
-void showPlantAgentDialog(BuildContext context) {
+/// 사이드바 메뉴나 로그인 화면에서 호출해 챗봇 다이얼로그를 표시한다.
+///
+/// [allowGuest]가 true이면 로그인하지 않아도 연다 (iOS 심사 5.1.1(v)).
+/// 게스트는 Firestore RAG 없이 일반 원예 상담만 한다.
+void showPlantAgentDialog(BuildContext context, {bool allowGuest = false}) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  if (uid == null) return;
+  if (uid == null && !allowGuest) return;
 
   showDialog<void>(
     context: context,
     barrierDismissible: false, // 실수 터치로 대화 기록이 사라지지 않도록 방지
-    builder: (_) => _PlantAgentDialog(uid: uid),
+    builder: (_) => _PlantAgentDialog(uid: uid ?? ''),
   );
 }
 
@@ -28,6 +31,8 @@ void showPlantAgentDialog(BuildContext context) {
 class _PlantAgentDialog extends StatefulWidget {
   const _PlantAgentDialog({required this.uid});
   final String uid;
+
+  bool get isGuest => uid.isEmpty;
 
   @override
   State<_PlantAgentDialog> createState() => _PlantAgentDialogState();
@@ -129,6 +134,7 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
       child: Column(
         children: [
           _buildHeader(colorScheme),
+          if (widget.isGuest) _buildGuestNotice(colorScheme),
           Expanded(child: _buildMessageList(colorScheme)),
           if (_pendingImageBytes != null) _buildImagePreview(colorScheme),
           _buildInputBar(colorScheme),
@@ -164,11 +170,11 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
             child: const Icon(Icons.eco, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '식물 Agent',
                   style: TextStyle(
                     color: Colors.white,
@@ -177,8 +183,10 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
                   ),
                 ),
                 Text(
-                  'Gemini 3.5 Flash • 스마트 원예 진단 에이전트',
-                  style: TextStyle(
+                  widget.isGuest
+                      ? '게스트 • 일반 원예 상담'
+                      : 'Gemini 3.5 Flash • 스마트 원예 진단 에이전트',
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                   ),
@@ -222,6 +230,19 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
             tooltip: '닫기',
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGuestNotice(ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      color: colorScheme.surfaceContainerHigh,
+      child: const Text(
+        '로그인 전입니다. 일반 원예 질문과 사진 진단만 가능하며, '
+        '내 식물 맞춤 조언(물주기 일정·등록 정보)은 로그인 후 이용할 수 있어요.',
+        style: TextStyle(fontSize: 12, height: 1.35),
       ),
     );
   }
@@ -356,9 +377,14 @@ class _PlantAgentDialogState extends State<_PlantAgentDialog> {
                   bottomRight: Radius.circular(16),
                 ),
               ),
-              child: const Text(
-                '안녕하세요! 🌿\n저는 스마트 원예 진단 에이전트입니다.\n\n텍스트로 질문하거나 식물 사진을 첨부하시면 진단 및 관리 팁을 알려드릴게요!\n\n⚠️ AI는 여러분의 식물의 모든 정보를 정확히 파악할 수 없습니다. 해당 기능은 단순 도움을 드릴 뿐 최종 판단은 직접 하시길 권합니다.',
-                style: TextStyle(fontSize: 12, height: 1.2),
+              child: Text(
+                widget.isGuest
+                    ? '로그인하지 않은 상태입니다. 🌿\n\n'
+                        '지금은 일반적인 원예 질문과 사진 진단만 답할 수 있어요. '
+                        '등록한 식물 정보·물주기 일정은 보지 않습니다.\n\n'
+                        '내 식물 맞춤 상담은 Sign in with Apple 후 이용할 수 있습니다.'
+                    : '안녕하세요! 🌿\n저는 스마트 원예 진단 에이전트입니다.\n\n텍스트로 질문하거나 식물 사진을 첨부하시면 진단 및 관리 팁을 알려드릴게요!\n\n⚠️ AI는 여러분의 식물의 모든 정보를 정확히 파악할 수 없습니다. 해당 기능은 단순 도움을 드릴 뿐 최종 판단은 직접 하시길 권합니다.',
+                style: const TextStyle(fontSize: 12, height: 1.2),
               ),
             ),
           ),

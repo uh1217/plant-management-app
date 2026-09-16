@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
+import 'package:plantapp_p/presentation/widgets/plant_agent_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.viewModel});
@@ -102,12 +103,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (isLoading)
                     const CircularProgressIndicator()
                   else if (Platform.isIOS)
-                    // ── iOS: Apple ID 로그인 버튼 ──────────────────────────
-                    // Apple 가이드라인 준수 공식 버튼 위젯 사용 (임의 디자인 불가)
-                    SignInWithAppleButton(
-                      onPressed: () => viewModel.signInWithApple(),
-                      style: SignInWithAppleButtonStyle.black,
-                      borderRadius: BorderRadius.circular(12),
+                    // ── iOS: Apple ID 로그인 + 게스트 AI (Guideline 5.1.1(v)) ──
+                    Column(
+                      children: [
+                        SignInWithAppleButton(
+                          onPressed: () => viewModel.signInWithApple(),
+                          style: SignInWithAppleButtonStyle.black,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () =>
+                              showPlantAgentDialog(context, allowGuest: true),
+                          child: const Text('로그인 없이 AI 상담'),
+                        ),
+                      ],
                     )
                   else
                     // ── Android: Google 로그인 버튼 ──────────────────────────
