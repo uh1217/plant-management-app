@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Plant Management App Data Flow Pipelines",
+    "quality_profile": "showcase",
+    "viewBox": [980, 520],
+    "views": [
+      {
+        "id": "care-crud-flow",
+        "label": "Plant Care CRUD Flow",
+        "focus": ["user_touch", "plant_care", "firestore_repo", "cloud_db_storage"],
+        "note": "Transactional updates for watering and plant gallery synchronization."
+      },
+      {
+        "id": "ai-rag-flow",
+        "label": "Selective RAG Chat Flow",
+        "focus": ["chat_input", "rag_orchestrator", "rag_data_fetch", "gemini_flash"],
+        "note": "2-step selective RAG pipeline minimizing tokens and latency."
+      },
+      {
+        "id": "weather-flow",
+        "label": "Weather Recommendation Flow",
+        "focus": ["slot_timer", "weather_orchestrator", "functions_proxy", "owm_weather_api"],
+        "note": "Slot-cached weather fetching and combined plant care recommendation."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Client Trigger" },
+    { "label": "Domain Logic" },
+    { "label": "Integration / Proxy" },
+    { "label": "Cloud & AI Services" }
+  ],
+  "nodes": [
+    { "id": "user_touch", "type": "frontend", "label": "Care Interaction", "sublabel": "Button tap event", "stage": 0, "row": 0, "tag": "UI Event" },
+    { "id": "chat_input", "type": "frontend", "label": "Chat Query", "sublabel": "Natural language prompt", "stage": 0, "row": 1, "tag": "Prompt" },
+    { "id": "slot_timer", "type": "cloud", "label": "Slot Timer", "sublabel": "06:00 / 18:00 window", "stage": 0, "row": 2, "tag": "Scheduler" },
+
+    { "id": "plant_care", "type": "backend", "label": "Plant Care Logic", "sublabel": "Transaction & Limits", "stage": 1, "row": 0, "tag": "UseCase" },
+    { "id": "rag_orchestrator", "type": "backend", "label": "RAG Classifier", "sublabel": "Keyword + Intent step", "stage": 1, "row": 1, "tag": "Core" },
+    { "id": "weather_orchestrator", "type": "backend", "label": "Weather Recommender", "sublabel": "Aggregate & Slot check", "stage": 1, "row": 2, "tag": "Core" },
+
+    { "id": "firestore_repo", "type": "backend", "label": "Plant DataSource", "sublabel": "WriteBatch & DTO", "stage": 2, "row": 0, "tag": "Data Layer" },
+    { "id": "rag_data_fetch", "type": "backend", "label": "Context Builder", "sublabel": "Targeted plant fetch", "stage": 2, "row": 1, "tag": "Data Layer" },
+    { "id": "functions_proxy", "type": "security", "label": "Cloud Functions", "sublabel": "AppCheck & OWM Secret", "stage": 2, "row": 2, "tag": "Node.js" },
+
+    { "id": "cloud_db_storage", "type": "database", "label": "Firestore & Storage", "sublabel": "plants & gallery photo", "stage": 3, "row": 0, "tag": "Persistence" },
+    { "id": "gemini_flash", "type": "cloud", "label": "Gemini 3.5 Flash", "sublabel": "Streaming & One-shot", "stage": 3, "row": 1, "tag": "Google AI" },
+    { "id": "owm_weather_api", "type": "external", "label": "OpenWeatherMap", "sublabel": "5-day Forecast API", "stage": 3, "row": 2, "tag": "REST API" }
+  ],
+  "flows": [
+    { "id": "f_care_touch", "from": "user_touch", "to": "plant_care", "label": "Care Event", "variant": "emphasis" },
+    { "id": "f_care_mutate", "from": "plant_care", "to": "firestore_repo", "label": "Mutate Request", "variant": "emphasis" },
+    { "id": "f_care_persist", "from": "firestore_repo", "to": "cloud_db_storage", "label": "Batch Commit", "variant": "emphasis" },
+
+    { "id": "f_chat_query", "from": "chat_input", "to": "rag_orchestrator", "label": "Query Text", "variant": "default" },
+    { "id": "f_rag_classify", "from": "rag_orchestrator", "to": "rag_data_fetch", "label": "Target Match", "variant": "default" },
+    { "id": "f_gemini_prompt", "from": "rag_data_fetch", "to": "gemini_flash", "label": "Augmented Prompt", "variant": "emphasis" },
+
+    { "id": "f_slot_check", "from": "slot_timer", "to": "weather_orchestrator", "label": "Slot Trigger", "variant": "dashed" },
+    { "id": "f_weather_proxy", "from": "weather_orchestrator", "to": "functions_proxy", "label": "Callable HTTPS", "variant": "security" },
+    { "id": "f_owm_fetch", "from": "functions_proxy", "to": "owm_weather_api", "label": "Secret Call", "variant": "security" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Plant Care Pipeline", "items": ["User touch events invoke transactional UseCases", "Duplicate checks and rolling care limits ensure clean records", "Photo uploads are compressed before reaching Storage"] },
+    { "dot": "cyan", "title": "2-Step Selective RAG", "items": ["Cached plant names enable instant 0-cost keyword matching", "Intent classification falls back to lightweight Gemini queries", "Enriched prompts feed Gemini 3.5 Flash for streamed answers"] },
+    { "dot": "amber", "title": "Weather Intelligence", "items": ["Slot-cached forecast requests protect external API limits", "Cloud Functions proxy hides the secret key behind AppCheck", "Gemini combines weather context with plant watering state"] }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Plant Management App Clean Architecture",
+    "quality_profile": "showcase",
+    "viewBox": [1320, 560],
+    "views": [
+      {
+        "id": "clean-architecture-pipeline",
+        "label": "Clean Architecture Flow",
+        "focus": ["ui_views", "viewmodels", "usecases", "repositories", "datasources", "firestore", "storage"],
+        "note": "Standard plant CRUD and state update flow through layers."
+      },
+      {
+        "id": "ai-and-weather-flow",
+        "label": "AI Chat & Weather Engine",
+        "focus": ["viewmodels", "ai_service", "gemini_ai", "functions"],
+        "note": "RAG-driven chat with Gemini 3.5 and weather recommendation cards."
+      },
+      {
+        "id": "security-and-auth",
+        "label": "Authentication & Cloud Boundary",
+        "focus": ["ui_views", "viewmodels", "auth", "firestore", "storage"],
+        "note": "Secure identity lifecycle and cascading data cleanup."
+      }
+    ]
+  },
+  "components": [
+    { "id": "ui_views", "type": "frontend", "label": "Presentation Views", "sublabel": "Home / Login / Dialogs", "pos": [40, 260], "size": [130, 60] },
+    { "id": "viewmodels", "type": "frontend", "label": "ViewModels", "sublabel": "ChangeNotifier (MVVM)", "pos": [260, 260], "size": [130, 60] },
+    { "id": "auth", "type": "security", "label": "Firebase Auth", "sublabel": "Google & Apple OAuth", "pos": [260, 100], "size": [130, 60] },
+    { "id": "usecases", "type": "backend", "label": "Domain UseCases", "sublabel": "Pure Business Rules", "pos": [480, 260], "size": [130, 60] },
+    { "id": "repositories", "type": "backend", "label": "Repositories", "sublabel": "Contracts & Data Impl", "pos": [700, 260], "size": [130, 60] },
+    { "id": "datasources", "type": "backend", "label": "DataSources", "sublabel": "Remote & API Clients", "pos": [920, 260], "size": [130, 60] },
+    { "id": "ai_service", "type": "backend", "label": "Core AI Services", "sublabel": "RAG & Weather Engine", "pos": [480, 410], "size": [130, 60] },
+    { "id": "gemini_ai", "type": "cloud", "label": "Gemini 3.5 Flash", "sublabel": "Firebase AI SDK", "pos": [700, 410], "size": [130, 60] },
+    { "id": "firestore", "type": "database", "label": "Cloud Firestore", "sublabel": "users/{uid} NoSQL", "pos": [1150, 120], "size": [130, 60] },
+    { "id": "storage", "type": "cloud", "label": "Firebase Storage", "sublabel": "Images & Gallery", "pos": [1150, 260], "size": [130, 60] },
+    { "id": "functions", "type": "cloud", "label": "Cloud Functions", "sublabel": "OWM Proxy & AppCheck", "pos": [1150, 400], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Flutter Client Application", "wraps": ["ui_views", "viewmodels", "usecases", "repositories", "datasources", "ai_service"], "pad": 18 },
+    { "kind": "security-group", "label": "Firebase Serverless Cloud", "wraps": ["auth", "firestore", "storage", "functions", "gemini_ai"], "pad": 18 }
+  ],
+  "connections": [
+    { "from": "ui_views", "to": "viewmodels", "label": "UI Event", "variant": "emphasis" },
+    { "from": "viewmodels", "to": "auth", "label": "OAuth", "variant": "security" },
+    { "from": "viewmodels", "to": "usecases", "label": "Execute", "variant": "emphasis" },
+    { "from": "viewmodels", "to": "ai_service", "label": "Stream Call", "variant": "default" },
+    { "from": "usecases", "to": "repositories" },
+    { "from": "repositories", "to": "datasources" },
+    { "from": "datasources", "to": "firestore", "label": "CRUD", "variant": "emphasis", "fromSide": "right", "toSide": "left" },
+    { "from": "datasources", "to": "storage", "fromSide": "right", "toSide": "left" },
+    { "from": "datasources", "to": "functions", "label": "HTTPS", "variant": "security", "fromSide": "right", "toSide": "left" },
+    { "from": "ai_service", "to": "gemini_ai", "label": "Prompt", "variant": "emphasis", "fromSide": "right", "toSide": "left" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Presentation & Domain", "items": ["MVVM pattern with ChangeNotifier state holders", "Domain UseCases isolate plant care business rules", "Pure Dart entities completely decoupled from Firebase"] },
+    { "dot": "emerald", "title": "Data & Backend", "items": ["Firestore subcollections users/{uid}/plants", "Transaction safety for duplicate care prevention", "Cascading batch cleanup of Storage photos on deletion"] },
+    { "dot": "violet", "title": "AI & Weather Services", "items": ["Gemini 3.5 Flash streaming chat with selective RAG", "Cloud Functions proxy securing OpenWeatherMap API", "Morning and evening slot caches avoiding duplicate calls"] }
+  ]
+}

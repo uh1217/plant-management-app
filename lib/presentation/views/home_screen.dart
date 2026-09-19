@@ -3,6 +3,7 @@ import 'package:showcaseview/showcaseview.dart';
 
 import 'package:plantapp_p/domain/entities/care_item.dart';
 import 'package:plantapp_p/domain/entities/plant.dart';
+import 'package:plantapp_p/domain/sync_last_care_date.dart';
 import 'package:plantapp_p/presentation/app_colors.dart';
 import 'package:plantapp_p/presentation/utils/care_display.dart';
 import 'package:plantapp_p/presentation/utils/image_helpers.dart';
@@ -498,6 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(16),
                     child: _EditPlantFormContent(
                       plant: plant,
+                      careItems: _vm.careItems,
                       onSave: (updated) {
                         Navigator.pop(ctx);
                         _updatePlant(updated);
@@ -1006,10 +1008,12 @@ class _HomeScreenState extends State<HomeScreen> {
 class _EditPlantFormContent extends StatefulWidget {
   const _EditPlantFormContent({
     required this.plant,
+    required this.careItems,
     required this.onSave,
   });
 
   final Plant plant;
+  final List<CareItem> careItems;
   final void Function(Plant) onSave;
 
   @override
@@ -1105,10 +1109,30 @@ class _EditPlantFormContentState
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
 
-    // 마지막 물 준 날짜보다 이후인 물주기 기록 제거
-    final filteredHistory = widget.plant.wateringHistory
-        .where((h) => h.split('T')[0].compareTo(_lastWatered) <= 0)
-        .toList();
+    final oldDate = SyncLastCareDate.dateOnly(widget.plant.lastWatered);
+    final newDate = _lastWatered;
+    var wateringHistory = widget.plant.wateringHistory;
+    var fertilizerHistory = widget.plant.fertilizerHistory;
+    var pesticideHistory = widget.plant.pesticideHistory;
+
+    if (oldDate != newDate) {
+      wateringHistory = SyncLastCareDate.wateringHistory(
+        history: wateringHistory,
+        newDate: newDate,
+      );
+      fertilizerHistory = SyncLastCareDate.careHistory(
+        history: fertilizerHistory,
+        oldDate: oldDate,
+        newDate: newDate,
+        careItems: widget.careItems,
+      );
+      pesticideHistory = SyncLastCareDate.careHistory(
+        history: pesticideHistory,
+        oldDate: oldDate,
+        newDate: newDate,
+        careItems: widget.careItems,
+      );
+    }
 
     final updated = Plant(
       id: widget.plant.id,
@@ -1118,9 +1142,9 @@ class _EditPlantFormContentState
       wateringFrequency:
           int.tryParse(_freqCtrl.text.trim()) ?? 1,
       lastWatered: _lastWatered,
-      wateringHistory: filteredHistory,
-      fertilizerHistory: widget.plant.fertilizerHistory,
-      pesticideHistory: widget.plant.pesticideHistory,
+      wateringHistory: wateringHistory,
+      fertilizerHistory: fertilizerHistory,
+      pesticideHistory: pesticideHistory,
       notes: _notesCtrl.text.trim(),
     );
     widget.onSave(updated);
