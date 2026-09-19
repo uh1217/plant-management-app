@@ -449,6 +449,29 @@ void showAppInfo(BuildContext context) {
   );
 }
 
+const _appUsageGuideUrl = 'https://plantmanagementapp.carrd.co/';
+
+Future<void> openAppUsageGuideLink(BuildContext context) async {
+  final uri = Uri.parse(_appUsageGuideUrl);
+  try {
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('링크를 열 수 없습니다.')),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('링크를 열 수 없습니다.')),
+      );
+    }
+  }
+}
+
 Future<void> sendAppEmail(BuildContext context) async {
   final uri = Uri(
     scheme: 'mailto',
@@ -984,6 +1007,20 @@ class _AppSidebarState extends State<AppSidebar> {
                                     title: Text('앱 정보',
                                         style: TextStyle(color: outline)),
                                     onTap: widget.onAppInfo,
+                                  ),
+                                  ListTile(
+                                    leading: Icon(
+                                        Icons.menu_book_outlined,
+                                        color: outline),
+                                    title: Text('앱 사용 가이드 링크',
+                                        style: TextStyle(color: outline)),
+                                    trailing: Icon(
+                                      Icons.open_in_new,
+                                      size: 16,
+                                      color: outline.withOpacity(0.6),
+                                    ),
+                                    onTap: () =>
+                                        openAppUsageGuideLink(context),
                                   ),
                                 ],
                               );
