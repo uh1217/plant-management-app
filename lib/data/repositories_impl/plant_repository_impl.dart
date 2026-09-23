@@ -111,4 +111,36 @@ class PlantRepositoryImpl implements PlantRepository {
       return Failure(error: e, message: '사진 저장에 실패했습니다.');
     }
   }
+
+  @override
+  Future<Result<void>> replaceGalleryPhoto(
+    String plantId,
+    GalleryPhoto photo,
+    String previousPhotoUrl,
+  ) async {
+    try {
+      await _remote.replaceGalleryPhoto(
+        plantId,
+        GalleryPhotoMapper.toDto(photo),
+        previousPhotoUrl,
+      );
+      return const Success(null);
+    } catch (e) {
+      return Failure(error: e, message: '사진을 바꾸지 못했습니다.');
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteGalleryPhoto(
+    String plantId,
+    String photoId,
+    String photoUrl,
+  ) async {
+    try {
+      await _remote.deleteGalleryPhoto(plantId, photoId, photoUrl);
+      return const Success(null);
+    } catch (e) {
+      return Failure(error: e, message: '기록을 삭제하지 못했습니다.');
+    }
+  }
 }

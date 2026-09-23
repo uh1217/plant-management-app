@@ -34,6 +34,8 @@ import 'package:plantapp_p/domain/usecases/send_message_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_weather_recommendation_usecase.dart';
 import 'package:plantapp_p/domain/usecases/get_gallery_photos_usecase.dart';
 import 'package:plantapp_p/domain/usecases/add_gallery_photo_usecase.dart';
+import 'package:plantapp_p/domain/usecases/delete_gallery_photo_usecase.dart';
+import 'package:plantapp_p/domain/usecases/replace_gallery_photo_usecase.dart';
 import 'package:plantapp_p/presentation/viewmodels/home_view_model.dart';
 import 'package:plantapp_p/presentation/viewmodels/login_view_model.dart';
 import 'package:plantapp_p/presentation/viewmodels/chat_view_model.dart';
@@ -70,6 +72,8 @@ class ServiceLocator {
   late final GetWeatherRecommendationUseCase getWeatherRecommendationUseCase;
   late final GetGalleryPhotosUseCase getGalleryPhotosUseCase;
   late final AddGalleryPhotoUseCase addGalleryPhotoUseCase;
+  late final ReplaceGalleryPhotoUseCase replaceGalleryPhotoUseCase;
+  late final DeleteGalleryPhotoUseCase deleteGalleryPhotoUseCase;
 
   bool _initialized = false;
 
@@ -119,6 +123,8 @@ class ServiceLocator {
     );
     getGalleryPhotosUseCase = GetGalleryPhotosUseCase(plantRepository);
     addGalleryPhotoUseCase = AddGalleryPhotoUseCase(plantRepository);
+    replaceGalleryPhotoUseCase = ReplaceGalleryPhotoUseCase(plantRepository);
+    deleteGalleryPhotoUseCase = DeleteGalleryPhotoUseCase(plantRepository);
     _initialized = true;
   }
 

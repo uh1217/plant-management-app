@@ -16,4 +16,14 @@ abstract class PlantRepository {
       {required bool includeWatering});
   Future<Result<List<GalleryPhoto>>> getGalleryPhotos(String plantId);
   Future<Result<void>> addGalleryPhoto(String plantId, GalleryPhoto photo);
+  Future<Result<void>> replaceGalleryPhoto(
+    String plantId,
+    GalleryPhoto photo,
+    String previousPhotoUrl,
+  );
+  Future<Result<void>> deleteGalleryPhoto(
+    String plantId,
+    String photoId,
+    String photoUrl,
+  );
 }

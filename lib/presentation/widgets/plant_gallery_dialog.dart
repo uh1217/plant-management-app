@@ -107,12 +107,19 @@ class _PlantGalleryDialogState extends State<PlantGalleryDialog> {
       builder: (_) => _PhotoDetailDialog(
         photo: photo,
         plantId: widget.plantId,
-        onMemoSaved: (updatedPhoto) {
+        onPhotoChanged: (updatedPhoto) {
+          if (!mounted) return;
           setState(() {
             final idx = _photos.indexWhere((p) => p.id == updatedPhoto.id);
             if (idx != -1) {
               _photos = List.of(_photos)..[idx] = updatedPhoto;
             }
+          });
+        },
+        onDeleted: (photoId) {
+          if (!mounted) return;
+          setState(() {
+            _photos = _photos.where((p) => p.id != photoId).toList();
           });
         },
       ),
@@ -424,28 +431,36 @@ class _PhotoDetailDialog extends StatefulWidget {
   const _PhotoDetailDialog({
     required this.photo,
     required this.plantId,
-    required this.onMemoSaved,
+    required this.onPhotoChanged,
+    required this.onDeleted,
   });
 
   final GalleryPhoto photo;
   final String plantId;
-  final void Function(GalleryPhoto updatedPhoto) onMemoSaved;
+  final void Function(GalleryPhoto updatedPhoto) onPhotoChanged;
+  final void Function(String photoId) onDeleted;
 
   @override
   State<_PhotoDetailDialog> createState() => _PhotoDetailDialogState();
 }
 
 class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
+  late GalleryPhoto _current;
   late TextEditingController _memoController;
   bool _isSaving = false;
+  bool _isReplacing = false;
+  bool _isDeleting = false;
   bool _memoChanged = false;
+
+  bool get _isBusy => _isSaving || _isReplacing || _isDeleting;
 
   @override
   void initState() {
     super.initState();
-    _memoController = TextEditingController(text: widget.photo.memo);
+    _current = widget.photo;
+    _memoController = TextEditingController(text: _current.memo);
     _memoController.addListener(() {
-      final changed = _memoController.text != widget.photo.memo;
+      final changed = _memoController.text != _current.memo;
       if (changed != _memoChanged) setState(() => _memoChanged = changed);
     });
   }
@@ -457,14 +472,14 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
   }
 
   Future<void> _saveMemo() async {
-    if (_isSaving) return;
+    if (_isBusy) return;
     setState(() => _isSaving = true);
     FocusScope.of(context).unfocus();
 
     final updated = GalleryPhoto(
-      id: widget.photo.id,
-      photoUrl: widget.photo.photoUrl,
-      takenAt: widget.photo.takenAt,
+      id: _current.id,
+      photoUrl: _current.photoUrl,
+      takenAt: _current.takenAt,
       memo: _memoController.text.trim(),
     );
 
@@ -477,8 +492,11 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
 
     switch (result) {
       case Success():
-        widget.onMemoSaved(updated);
-        setState(() => _memoChanged = false);
+        setState(() {
+          _current = updated;
+          _memoChanged = false;
+        });
+        widget.onPhotoChanged(updated);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('메모가 저장되었습니다.'),
@@ -486,6 +504,111 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
           ),
         );
       case Failure(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+    }
+  }
+
+  Future<void> _replacePhoto() async {
+    if (_isBusy) return;
+
+    final xFile = await pickGalleryImage();
+    if (xFile == null || !mounted) return;
+
+    setState(() => _isReplacing = true);
+    String? uploadedUrl;
+    try {
+      final compressed = await compressImage(xFile.path);
+      final newUrl = await uploadGalleryImageToStorage(
+        compressed,
+        widget.plantId,
+      );
+      uploadedUrl = newUrl;
+      final updated = GalleryPhoto(
+        id: _current.id,
+        photoUrl: newUrl,
+        takenAt: _current.takenAt,
+        memo: _current.memo,
+      );
+      final previousPhotoUrl = _current.photoUrl;
+      final result = await ServiceLocator.instance.replaceGalleryPhotoUseCase(
+        widget.plantId,
+        updated,
+        previousPhotoUrl,
+      );
+      switch (result) {
+        case Success():
+          widget.onPhotoChanged(updated);
+          if (!mounted) return;
+          setState(() => _current = updated);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('사진이 변경되었습니다.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        case Failure(:final message):
+          await deleteUploadedStorageImage(newUrl);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+      }
+    } catch (_) {
+      if (uploadedUrl != null) {
+        await deleteUploadedStorageImage(uploadedUrl);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 업로드에 실패했습니다. 다시 시도해주세요.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isReplacing = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    if (_isBusy) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          backgroundColor: colorScheme.surface,
+          title: const Text('기록 삭제'),
+          content: const Text('사진, 메모, 날짜가 함께 삭제됩니다. 되돌릴 수 없습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: TextButton.styleFrom(foregroundColor: colorScheme.error),
+              child: const Text('삭제'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeleting = true);
+    final result = await ServiceLocator.instance.deleteGalleryPhotoUseCase(
+      widget.plantId,
+      _current.id,
+      _current.photoUrl,
+    );
+    switch (result) {
+      case Success():
+        widget.onDeleted(_current.id);
+        if (mounted) Navigator.pop(context);
+      case Failure(:final message):
+        if (!mounted) return;
+        setState(() => _isDeleting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -527,6 +650,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                     _buildDateRow(colorScheme),
                     const Divider(height: 1),
                     _buildMemoSection(colorScheme, theme),
+                    _buildDeleteButton(colorScheme),
                   ],
                 ),
               ),
@@ -568,39 +692,74 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
   }
 
   Widget _buildImageArea(ColorScheme colorScheme) {
-    final url = widget.photo.photoUrl;
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.zero),
-      child: SizedBox(
-        height: 260,
-        child: InteractiveViewer(
-          child: url.startsWith('http')
-              ? CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (_, __) => Container(
-                    color: colorScheme.onSurface.withOpacity(0.08),
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    color: colorScheme.onSurface.withOpacity(0.08),
-                    child: const Center(
-                        child: Icon(Icons.broken_image, size: 48)),
-                  ),
-                )
-              : Image.file(
-                  File(url),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: colorScheme.onSurface.withOpacity(0.08),
-                    child: const Center(
-                        child: Icon(Icons.broken_image, size: 48)),
+    final url = _current.photoUrl;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Stack(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.zero),
+              child: SizedBox(
+                height: 260,
+                width: double.infinity,
+                child: InteractiveViewer(
+                  child: url.startsWith('http')
+                      ? CachedNetworkImage(
+                          imageUrl: url,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          placeholder: (_, __) => Container(
+                            color: colorScheme.onSurface.withOpacity(0.08),
+                            child: const Center(
+                                child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: colorScheme.onSurface.withOpacity(0.08),
+                            child: const Center(
+                                child: Icon(Icons.broken_image, size: 48)),
+                          ),
+                        )
+                      : Image.file(
+                          File(url),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: colorScheme.onSurface.withOpacity(0.08),
+                            child: const Center(
+                                child: Icon(Icons.broken_image, size: 48)),
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            if (_isReplacing)
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0x66000000),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.white),
                   ),
                 ),
+              ),
+          ],
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: OutlinedButton.icon(
+            onPressed: _isBusy ? null : _replacePhoto,
+            icon: const Icon(Icons.photo_camera_outlined, size: 18),
+            label: Text(_isReplacing ? '변경 중...' : '사진 변경'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colorScheme.primary,
+              side: BorderSide(color: colorScheme.primary.withOpacity(0.5)),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -613,7 +772,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
               size: 15, color: colorScheme.primary.withOpacity(0.8)),
           const SizedBox(width: 8),
           Text(
-            _formatDate(widget.photo.takenAt),
+            _formatDate(_current.takenAt),
             style: TextStyle(
               fontSize: 13,
               color: colorScheme.onSurface.withOpacity(0.75),
@@ -679,7 +838,7 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
           SizedBox(
             height: 42,
             child: ElevatedButton.icon(
-              onPressed: (_memoChanged && !_isSaving) ? _saveMemo : null,
+              onPressed: (_memoChanged && !_isBusy) ? _saveMemo : null,
               icon: _isSaving
                   ? const SizedBox(
                       width: 16,
@@ -703,6 +862,35 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(ColorScheme colorScheme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: SizedBox(
+        height: 42,
+        child: OutlinedButton.icon(
+          onPressed: _isBusy ? null : _confirmDelete,
+          icon: _isDeleting
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colorScheme.error,
+                  ),
+                )
+              : const Icon(Icons.delete_outline, size: 18),
+          label: Text(_isDeleting ? '삭제 중...' : '이 기록 삭제'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error.withOpacity(0.45)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
       ),
     );
   }

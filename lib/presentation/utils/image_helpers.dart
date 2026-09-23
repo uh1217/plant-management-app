@@ -111,6 +111,14 @@ Future<String> uploadGalleryImageToStorage(
   return await ref.getDownloadURL();
 }
 
+/// 업로드까지 성공한 뒤 문서 저장이 실패했을 때, 방금 올린 파일을 치운다.
+Future<void> deleteUploadedStorageImage(String url) async {
+  if (!url.startsWith('https://firebasestorage')) return;
+  try {
+    await FirebaseStorage.instance.refFromURL(url).delete();
+  } catch (_) {}
+}
+
 void showStorageFullDialog(BuildContext context) {
   showDialog(
     context: context,

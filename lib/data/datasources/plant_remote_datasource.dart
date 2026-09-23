@@ -47,23 +47,20 @@ class PlantRemoteDataSource {
     // Storage에 업로드된 대표 이미지 삭제 시도
     try {
       final doc = await _plantsCol().doc(plantId).get();
-      final imageUrl = doc.data()?['image_url'] as String?;
-      if (imageUrl != null && imageUrl.startsWith('https://firebasestorage')) {
-        await FirebaseStorage.instance.refFromURL(imageUrl).delete();
-      }
+      await _deleteStorageByUrl(
+        doc.data()?['image_url'] as String?,
+        ignoreFailures: true,
+      );
     } catch (_) {}
 
     // gallery 서브컬렉션의 Storage 이미지를 병렬로 삭제 시도
     final gallery = await _galleryCol(plantId).get();
     await Future.wait(
       gallery.docs.map((doc) async {
-        try {
-          final photoUrl = doc.data()['photo_url'] as String?;
-          if (photoUrl != null &&
-              photoUrl.startsWith('https://firebasestorage')) {
-            await FirebaseStorage.instance.refFromURL(photoUrl).delete();
-          }
-        } catch (_) {}
+        await _deleteStorageByUrl(
+          doc.data()['photo_url'] as String?,
+          ignoreFailures: true,
+        );
       }),
     );
 
@@ -158,6 +155,45 @@ class PlantRemoteDataSource {
 
   Future<void> addGalleryPhoto(String plantId, GalleryPhotoDto photo) async {
     await _galleryCol(plantId).doc(photo.id).set(photo.toFirestore());
+  }
+
+  /// 같은 문서 id·taken_at·memo를 유지한 채 photo_url만 바꾼 뒤, 이전 Storage 파일을 지운다.
+  /// 문서 갱신 이후의 이전 파일 삭제 실패는 교체 자체를 실패로 만들지 않는다.
+  Future<void> replaceGalleryPhoto(
+    String plantId,
+    GalleryPhotoDto photo,
+    String previousPhotoUrl,
+  ) async {
+    await addGalleryPhoto(plantId, photo);
+    if (previousPhotoUrl == photo.photoUrl) return;
+    await _deleteStorageByUrl(previousPhotoUrl, ignoreFailures: true);
+  }
+
+  /// 기록 한 건의 Storage 파일과 Firestore 문서를 삭제한다.
+  /// 파일이 이미 없으면 문서 삭제를 계속하고, 그 외 Storage 오류는 문서를 남긴 채 다시 던진다.
+  Future<void> deleteGalleryPhoto(
+    String plantId,
+    String photoId,
+    String photoUrl,
+  ) async {
+    await _deleteStorageByUrl(photoUrl);
+    await _galleryCol(plantId).doc(photoId).delete();
+  }
+
+  Future<void> _deleteStorageByUrl(
+    String? url, {
+    bool ignoreFailures = false,
+  }) async {
+    if (url == null || !url.startsWith('https://firebasestorage')) return;
+    try {
+      await FirebaseStorage.instance.refFromURL(url).delete();
+    } on FirebaseException catch (e) {
+      if (e.code == 'object-not-found' || ignoreFailures) return;
+      rethrow;
+    } catch (_) {
+      if (ignoreFailures) return;
+      rethrow;
+    }
   }
 
 
